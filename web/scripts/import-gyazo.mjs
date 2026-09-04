@@ -11,7 +11,7 @@
  *                  -> New application -> "Your access token").
  *   SNIMOK_TOKEN   Snimok API token (Settings -> API tokens). Required unless
  *                  SNIMOK_DEVICE is given (anonymous import owned by a device id).
- *   SNIMOK_URL     Snimok base URL (default https://snimok-ten.vercel.app).
+ *   SNIMOK_URL     Snimok base URL (default https://snimok.xyz).
  *
  * Options:
  *   --dry-run        Only list what would be imported.
@@ -33,7 +33,7 @@ const opt = (name, def) => {
 const GYAZO_TOKEN = process.env.GYAZO_TOKEN;
 const SNIMOK_TOKEN = process.env.SNIMOK_TOKEN;
 const SNIMOK_DEVICE = process.env.SNIMOK_DEVICE;
-const SNIMOK_URL = (process.env.SNIMOK_URL ?? "https://snimok-ten.vercel.app").replace(/\/$/, "");
+const SNIMOK_URL = (process.env.SNIMOK_URL ?? "https://snimok.xyz").replace(/\/$/, "");
 const DRY = flag("--dry-run");
 const LIMIT = Number(opt("--limit", "0")) || Infinity;
 const FROM_JSON = opt("--from-json", null);

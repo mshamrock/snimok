@@ -1,0 +1,18 @@
+# web
+web/node_modules
+web/.next
+web/.env
+web/.env*.local
+web/next-env.d.ts
+web/*.tsbuildinfo
+web/.vercel
+
+# desktop
+desktop/.build
+desktop/build
+desktop/*.xcodeproj
+.DS_Store
+
+# local state
+web/import-gyazo.state.json
+web/.claude

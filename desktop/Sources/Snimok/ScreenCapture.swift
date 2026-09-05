@@ -11,7 +11,7 @@ final class ScreenCapture {
 
     private(set) var isRunning = false
 
-    func selectArea(mode: Mode = .area, completion: @escaping (URL?) -> Void) {
+    func selectArea(mode: Mode = .area, silent: Bool = false, completion: @escaping (URL?) -> Void) {
         guard !isRunning else { return }
         isRunning = true
         let file = FileManager.default.temporaryDirectory
@@ -19,9 +19,11 @@ final class ScreenCapture {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        // -i interactive, -x no sound, -r no DPI metadata, -t png format,
-        // -W start in window mode, -o omit the window shadow
-        var args = ["-i", "-x", "-r", "-t", "png"]
+        // -i interactive, -r no DPI metadata, -t png format,
+        // -x suppresses the system shutter sound, -W start in window mode,
+        // -o omit the window shadow
+        var args = ["-i", "-r", "-t", "png"]
+        if silent { args.append("-x") }
         if mode == .window { args += ["-W", "-o"] }
         process.arguments = args + [file.path]
         process.terminationHandler = { [weak self] _ in

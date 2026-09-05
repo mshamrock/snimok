@@ -38,6 +38,12 @@ enum Settings {
         set { defaults.set(newValue, forKey: "shortcut") }
     }
 
+    /// Play the system shutter sound when a capture is taken (default on).
+    static var shutterSound: Bool {
+        get { defaults.object(forKey: "shutterSound") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "shutterSound") }
+    }
+
     static var apiToken: String? {
         get { defaults.string(forKey: tokenKey) }
         set {

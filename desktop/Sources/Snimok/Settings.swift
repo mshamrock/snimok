@@ -33,6 +33,11 @@ enum Settings {
         return id
     }
 
+    static var shortcutId: String {
+        get { defaults.string(forKey: "shortcut") ?? Shortcut.defaultArea.id }
+        set { defaults.set(newValue, forKey: "shortcut") }
+    }
+
     static var apiToken: String? {
         get { defaults.string(forKey: tokenKey) }
         set {

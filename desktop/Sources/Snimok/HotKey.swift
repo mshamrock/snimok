@@ -32,9 +32,19 @@ final class HotKeys {
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(keyCode, modifiers, EventHotKeyID(signature: signature, id: id),
                                          GetApplicationEventTarget(), 0, &ref)
-        guard status == noErr, let ref else { return false }
+        guard status == noErr, let ref else {
+            NSLog("[Snimok] RegisterEventHotKey(keyCode=%u, mods=%u) failed: %d", keyCode, modifiers, status)
+            return false
+        }
         refs.append(ref)
         handlers[id] = handler
         return true
+    }
+
+    /// Removes every registered shortcut (used when the user picks a new one).
+    func unregisterAll() {
+        for ref in refs { UnregisterEventHotKey(ref) }
+        refs.removeAll()
+        handlers.removeAll()
     }
 }

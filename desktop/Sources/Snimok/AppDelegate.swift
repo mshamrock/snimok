@@ -8,20 +8,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var connecting = false
 
     private var captureItem: NSMenuItem!
+    private var windowItem: NSMenuItem!
     private var accountItem: NSMenuItem!
     private var statusLine: NSMenuItem!
+    private var shortcutMenu: NSMenu!
+    private var shortcutOK = true
 
     // MARK: Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setupStatusItem()
-        HotKeys.shared.register(keyCode: UInt32(kVK_ANSI_7), modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
-            self?.captureArea()
-        }
-        HotKeys.shared.register(keyCode: UInt32(kVK_ANSI_8), modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
-            self?.captureWindow()
-        }
+        applyShortcut(Shortcut.byId(Settings.shortcutId) ?? Shortcut.defaultArea)
         // Gyazo behaviour: launching the app *is* the capture gesture.
         // `--no-capture` (e.g. for a login item) just puts the icon in the menu bar.
         if !CommandLine.arguments.contains("--no-capture") {
@@ -51,15 +49,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
 
-        captureItem = NSMenuItem(title: "Capture Area", action: #selector(captureAreaAction), keyEquivalent: "7")
-        captureItem.keyEquivalentModifierMask = [.command, .shift]
+        captureItem = NSMenuItem(title: "Capture Area", action: #selector(captureAreaAction), keyEquivalent: "")
         captureItem.target = self
         menu.addItem(captureItem)
 
-        let windowItem = NSMenuItem(title: "Capture Window", action: #selector(captureWindowAction), keyEquivalent: "8")
-        windowItem.keyEquivalentModifierMask = [.command, .shift]
+        windowItem = NSMenuItem(title: "Capture Window", action: #selector(captureWindowAction), keyEquivalent: "")
         windowItem.target = self
         menu.addItem(windowItem)
+
+        let shortcutItem = NSMenuItem(title: "Shortcut", action: nil, keyEquivalent: "")
+        shortcutMenu = NSMenu(title: "Shortcut")
+        for sc in Shortcut.all {
+            let item = NSMenuItem(title: sc.title, action: #selector(pickShortcut(_:)), keyEquivalent: "")
+            item.representedObject = sc.id
+            item.target = self
+            shortcutMenu.addItem(item)
+        }
+        shortcutItem.submenu = shortcutMenu
+        menu.addItem(shortcutItem)
 
         let open = NSMenuItem(title: "My Captures", action: #selector(openCaptures), keyEquivalent: "")
         open.target = self
@@ -90,8 +97,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let signedIn = Settings.apiToken != nil
         accountItem.title = signedIn ? "Sign Out" : "Sign In…"
         let host = Settings.serverURL.host ?? ""
-        statusLine.title = signedIn ? "Signed in · \(host)" : "Not signed in · \(host)"
+        var status = signedIn ? "Signed in · \(host)" : "Not signed in · \(host)"
+        if !shortcutOK { status += " · shortcut unavailable" }
+        statusLine.title = status
         captureItem.isEnabled = !capture.isRunning
+        windowItem.isEnabled = !capture.isRunning
+        let current = Settings.shortcutId
+        for item in shortcutMenu.items {
+            item.state = (item.representedObject as? String) == current ? .on : .off
+        }
+    }
+
+    /// Registers the global shortcuts for the chosen combination (area) and its window variant.
+    private func applyShortcut(_ sc: Shortcut) {
+        HotKeys.shared.unregisterAll()
+        var ok = HotKeys.shared.register(keyCode: sc.keyCode, modifiers: sc.carbonModifiers) { [weak self] in
+            self?.captureArea()
+        }
+        captureItem.keyEquivalent = sc.keyEquivalent
+        captureItem.keyEquivalentModifierMask = sc.nsModifiers
+        if let w = sc.windowVariant {
+            ok = HotKeys.shared.register(keyCode: w.keyCode, modifiers: w.carbonModifiers) { [weak self] in
+                self?.captureWindow()
+            } && ok
+            windowItem.keyEquivalent = w.keyEquivalent
+            windowItem.keyEquivalentModifierMask = w.nsModifiers
+        } else {
+            windowItem.keyEquivalent = ""
+        }
+        shortcutOK = ok
+        NSLog("[Snimok] shortcut %@ registered: %@", sc.title, ok ? "yes" : "NO")
+    }
+
+    @objc private func pickShortcut(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, let sc = Shortcut.byId(id) else { return }
+        Settings.shortcutId = id
+        applyShortcut(sc)
     }
 
     // MARK: Actions

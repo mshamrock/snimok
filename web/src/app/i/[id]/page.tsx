@@ -105,8 +105,6 @@ export default async function CapturePage({ params }: Props) {
           }}
           permalink={captureUrl(capture.id)}
           isOwner={isOwner}
-          anonymous={!capture.userId}
-          signedIn={!!user}
           ownerLabel={ownerName(ownerUser)}
           neighbors={neighbors}
           tagSuggestions={tagSuggestions}

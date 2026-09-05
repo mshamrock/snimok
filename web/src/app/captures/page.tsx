@@ -106,18 +106,6 @@ export default async function CapturesPage({
           </div>
         ) : null}
 
-        {!user ? (
-          <div className="card mb-6 flex flex-wrap items-center justify-between gap-3 border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-            <span>
-              These screenshots are saved to this device only. Create an account to keep
-              them and access them from anywhere &ndash; optional.
-            </span>
-            <span className="flex gap-2">
-              <Link href="/register?next=%2Fcaptures" className="btn btn-primary">Sign up</Link>
-              <Link href="/login?next=%2Fcaptures" className="btn">Log in</Link>
-            </span>
-          </div>
-        ) : null}
 
         {items.length === 0 && !beforeDate ? (
           hasFilters ? (

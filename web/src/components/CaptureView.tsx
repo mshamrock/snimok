@@ -55,8 +55,6 @@ export function CaptureView({
   capture,
   permalink,
   isOwner,
-  anonymous,
-  signedIn,
   ownerLabel,
   neighbors,
   tagSuggestions,
@@ -64,9 +62,6 @@ export function CaptureView({
   capture: CaptureDTO;
   permalink: string;
   isOwner: boolean;
-  /** Uploaded without an account (owned by a device). */
-  anonymous: boolean;
-  signedIn: boolean;
   ownerLabel: string;
   neighbors: { newer: string | null; older: string | null };
   tagSuggestions: string[];
@@ -194,7 +189,6 @@ export function CaptureView({
     );
   }
 
-  const nextParam = `?next=${encodeURIComponent(`/i/${capture.id}`)}`;
   const suggestions = tagSuggestions.filter((t) => !tags.includes(t)).slice(0, 8);
   const toolBtn =
     "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-sm text-foreground transition-colors hover:bg-card-2 disabled:opacity-50";
@@ -203,18 +197,6 @@ export function CaptureView({
 
   return (
     <div className="space-y-4">
-      {isOwner && anonymous && !signedIn ? (
-        <div className="card flex flex-wrap items-center justify-between gap-3 border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-          <span>
-            Saved to this device. Create an account to keep your screenshots and see
-            them from anywhere &ndash; it&apos;s optional.
-          </span>
-          <span className="flex gap-2">
-            <Link href={`/register${nextParam}`} className="btn btn-primary">Sign up</Link>
-            <Link href={`/login${nextParam}`} className="btn">Log in</Link>
-          </span>
-        </div>
-      ) : null}
 
       {/* Stage: the image is the hero, the chrome recedes */}
       <div className="relative overflow-hidden rounded-lg bg-stage ring-1 ring-border">

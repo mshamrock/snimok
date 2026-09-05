@@ -26,11 +26,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Default storage is still Vercel Blob; configure R2_* first." }, { status: 400 });
   }
   let exclude: string[] = [];
+  let mode: string | null = null;
   try {
     const body = await req.json();
     if (Array.isArray(body?.exclude)) exclude = body.exclude.filter((v: unknown) => typeof v === "string").slice(0, 500);
+    if (typeof body?.mode === "string") mode = body.mode;
   } catch {
     /* empty body is fine */
+  }
+
+  // mode "publicize": once the bucket has a public domain (R2_PUBLIC_BASE_URL),
+  // rewrite private r2:// references to direct https URLs so images are served
+  // by Cloudflare instead of streamed through /r/<id>.
+  if (mode === "publicize") {
+    const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+    if (!base) return NextResponse.json({ error: "R2_PUBLIC_BASE_URL is not set" }, { status: 400 });
+    const c = schema.captures;
+    const rows = await (await db())
+      .select({ id: c.id, pathname: c.blobPathname })
+      .from(c)
+      .where(like(c.blobUrl, "r2://%"))
+      .limit(500);
+    let updated = 0;
+    for (const row of rows) {
+      await (await db())
+        .update(c)
+        .set({ blobUrl: `${base}/${encodeURI(row.pathname)}`, access: "public", updatedAt: new Date() })
+        .where(eq(c.id, row.id));
+      updated++;
+    }
+    const [{ n: remaining }] = await (await db())
+      .select({ n: sql<number>`count(*)::int` })
+      .from(c)
+      .where(like(c.blobUrl, "r2://%"));
+    return NextResponse.json({ mode, updated, remaining });
   }
 
   const c = schema.captures;

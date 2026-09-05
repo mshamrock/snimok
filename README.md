@@ -44,6 +44,32 @@ user registers or logs in (in that browser, or via the app's device-code sign-in
 from the menu bar), all anonymous captures of the device are linked to the
 account. Accounts are email + password.
 
+## Storage: Cloudflare R2 (recommended)
+
+Images live in an S3-compatible bucket. Cloudflare R2's free tier (10 GB,
+1 M writes and 10 M reads per month, no egress fees) fits a personal library;
+Vercel Blob on the Hobby plan gets suspended for 30 days once its limits are hit.
+
+1. Cloudflare dashboard → **R2 Object Storage** → *Create bucket* (e.g. `snimok`,
+   location Automatic).
+2. R2 → *Manage R2 API Tokens* → *Create API token*: permission **Object Read &
+   Write**, scoped to that bucket. Copy the Access Key ID and Secret Access Key.
+   The Account ID is shown on the same page (also in the dashboard URL).
+3. In the Vercel project add the environment variables (Production + Preview):
+   `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
+   Optional `R2_PUBLIC_BASE_URL` if the bucket has a public custom domain
+   (then images are served straight from Cloudflare instead of through `/r/<id>`).
+4. Redeploy. `GET /api/debug/blob?key=$DEBUG_KEY` shows a `default-storage (r2)`
+   probe that puts, reads and deletes a test object.
+5. Move existing captures off Vercel Blob:
+
+   ```bash
+   cd web && SNIMOK_URL=https://snimok.xyz ADMIN_KEY=<DEBUG_KEY> node scripts/migrate-storage.mjs
+   ```
+
+   The server route copies 25 captures per call; captures imported from Gyazo
+   are re-fetched from Gyazo when the Blob store is unreachable.
+
 ## Deploying the web app to Vercel
 
 1. In the Vercel dashboard open the project → **Storage** and create:

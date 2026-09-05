@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { storage } from "@/lib/storage";
+import { storage, storageKind } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -62,12 +62,25 @@ export async function GET(req: Request) {
   }
   // Also try the SDK's own token discovery (no explicit oidcToken).
   results.push(await timed("list-sdk-auth", (signal) => blob.list({ limit: 1, abortSignal: signal })));
+  // The configured default storage (R2 when R2_* is set) – put, open, delete.
+  results.push(
+    await timed(`default-storage (${storageKind()})`, async () => {
+      const st = storage();
+      const put = await st.put(`debug/probe-${Date.now()}.txt`, new TextEncoder().encode("ping"), "text/plain");
+      const opened = await st.open(put.url, put.access);
+      const size = opened ? (await new Response(opened.stream).arrayBuffer()).byteLength : null;
+      await st.delete(put.url);
+      return { url: put.url, access: put.access, readBack: size };
+    }),
+  );
 
   return NextResponse.json({
     env: {
       BLOB_STORE_ID: !!process.env.BLOB_STORE_ID,
       BLOB_READ_WRITE_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
       BLOB_ACCESS: process.env.BLOB_ACCESS ?? null,
+      R2: !!(process.env.R2_BUCKET && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && (process.env.R2_ACCOUNT_ID || process.env.R2_ENDPOINT)),
+      R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL ?? null,
       VERCEL_OIDC_TOKEN: exp(envToken),
       header_token: exp(headerToken),
       region: process.env.VERCEL_REGION,

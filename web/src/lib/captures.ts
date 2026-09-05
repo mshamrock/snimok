@@ -19,7 +19,7 @@ import {
 import { db, schema } from "@/db";
 import type { AccessPolicy, Capture, User } from "@/db/schema";
 import { captureId } from "@/lib/ids";
-import { storage, type BlobAccess, type OpenedObject } from "@/lib/storage";
+import { storage, storageFor, type BlobAccess, type OpenedObject } from "@/lib/storage";
 import { appUrl } from "@/lib/env";
 import {
   ALLOWED_TYPES,
@@ -271,14 +271,14 @@ export async function replaceCaptureImage(
     .where(eq(schema.captures.id, capture.id))
     .returning();
   if (capture.blobUrl !== blob.url) {
-    await storage().delete(capture.blobUrl).catch(() => {});
+    await storageFor(capture.blobUrl).delete(capture.blobUrl).catch(() => {});
   }
   return row;
 }
 
 export async function deleteCapture(capture: Capture): Promise<void> {
   await (await db()).delete(schema.captures).where(eq(schema.captures.id, capture.id));
-  await storage().delete(capture.blobUrl).catch(() => {});
+  await storageFor(capture.blobUrl).delete(capture.blobUrl).catch(() => {});
 }
 
 export async function getCapture(id: string): Promise<Capture | null> {
@@ -421,7 +421,7 @@ export function imageUrl(c: Capture): string {
 
 /** Opens the stored image as a stream (works for private stores too). */
 export function openCaptureImage(c: Capture): Promise<OpenedObject | null> {
-  return storage().open(c.blobUrl, c.access as BlobAccess);
+  return storageFor(c.blobUrl).open(c.blobUrl, c.access as BlobAccess);
 }
 
 export function captureJson(c: Capture, permalink: string) {

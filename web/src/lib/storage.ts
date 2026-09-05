@@ -154,17 +154,153 @@ const localFiles: ObjectStorage = {
   },
 };
 
-export function storage(): ObjectStorage {
+/* ------------------------------------------------------------------------ */
+/* Cloudflare R2 (any S3-compatible bucket works the same way)               */
+
+type R2Config = {
+  bucket: string;
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  /** Public base URL (custom domain / r2.dev) – when set, objects are public. */
+  publicBase: string | null;
+};
+
+function r2Config(): R2Config | null {
+  const bucket = process.env.R2_BUCKET;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const endpoint =
+    process.env.R2_ENDPOINT ??
+    (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined);
+  if (!bucket || !accessKeyId || !secretAccessKey || !endpoint) return null;
+  return {
+    bucket,
+    endpoint,
+    accessKeyId,
+    secretAccessKey,
+    publicBase: process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "") || null,
+  };
+}
+
+const gs3 = globalThis as typeof globalThis & { __snimokS3?: import("@aws-sdk/client-s3").S3Client };
+
+async function s3Client(cfg: R2Config) {
+  if (gs3.__snimokS3) return gs3.__snimokS3;
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  gs3.__snimokS3 = new S3Client({
+    region: "auto",
+    endpoint: cfg.endpoint,
+    forcePathStyle: true,
+    credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
+  });
+  return gs3.__snimokS3;
+}
+
+/** Private objects are referenced as r2://<bucket>/<key>; public ones by their https URL. */
+function r2Key(cfg: R2Config, url: string): string | null {
+  const prefix = `r2://${cfg.bucket}/`;
+  if (url.startsWith(prefix)) return url.slice(prefix.length);
+  if (cfg.publicBase && url.startsWith(`${cfg.publicBase}/`)) return decodeURI(url.slice(cfg.publicBase.length + 1));
+  return null;
+}
+
+function randomSuffix(): string {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+}
+
+const r2Storage: ObjectStorage = {
+  async put(pathname, bytes, contentType) {
+    const cfg = r2Config();
+    if (!cfg) throw new Error("R2 is not configured");
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const dot = pathname.lastIndexOf(".");
+    const key = dot > 0 ? `${pathname.slice(0, dot)}-${randomSuffix()}${pathname.slice(dot)}` : `${pathname}-${randomSuffix()}`;
+    const client = await s3Client(cfg);
+    await client.send(
+      new PutObjectCommand({
+        Bucket: cfg.bucket,
+        Key: key,
+        Body: Buffer.from(bytes),
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000, immutable",
+      }),
+    );
+    return cfg.publicBase
+      ? { url: `${cfg.publicBase}/${encodeURI(key)}`, pathname: key, access: "public" }
+      : { url: `r2://${cfg.bucket}/${key}`, pathname: key, access: "private" };
+  },
+  async open(url) {
+    const cfg = r2Config();
+    if (!cfg) throw new Error("R2 is not configured");
+    const key = r2Key(cfg, url);
+    if (!key) return null;
+    const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const client = await s3Client(cfg);
+    try {
+      const res = await client.send(new GetObjectCommand({ Bucket: cfg.bucket, Key: key }));
+      if (!res.Body) return null;
+      return {
+        stream: res.Body.transformToWebStream() as ReadableStream<Uint8Array>,
+        contentType: res.ContentType ?? "application/octet-stream",
+        size: res.ContentLength ?? null,
+      };
+    } catch (err) {
+      if ((err as { name?: string }).name === "NoSuchKey") return null;
+      throw err;
+    }
+  },
+  async delete(url) {
+    const cfg = r2Config();
+    if (!cfg) return;
+    const key = r2Key(cfg, url);
+    if (!key) return;
+    const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+    const client = await s3Client(cfg);
+    await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
+  },
+};
+
+/* ------------------------------------------------------------------------ */
+
+export type StorageKind = "r2" | "vercel-blob" | "local";
+
+/** Which backend new uploads go to. */
+export function storageKind(): StorageKind {
+  if (r2Config()) return "r2";
   // A connected Blob store injects either a read-write token or, with the
   // newer OIDC-based connection, BLOB_STORE_ID (the SDK then authenticates
   // with the runtime's VERCEL_OIDC_TOKEN).
-  if (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) return vercelBlob;
-  if (process.env.NODE_ENV !== "production" || process.env.ALLOW_LOCAL_UPLOADS === "1") {
-    return localFiles;
-  }
+  if (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) return "vercel-blob";
+  if (process.env.NODE_ENV !== "production" || process.env.ALLOW_LOCAL_UPLOADS === "1") return "local";
   throw new Error(
-    "No Blob store configured (BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID). Attach a Blob store to the Vercel project (Storage tab).",
+    "No object storage configured. Set R2_* variables (Cloudflare R2) or attach a Vercel Blob store.",
   );
+}
+
+export function storage(): ObjectStorage {
+  switch (storageKind()) {
+    case "r2":
+      return r2Storage;
+    case "vercel-blob":
+      return vercelBlob;
+    default:
+      return localFiles;
+  }
+}
+
+/** The backend that holds an existing object, judged by its stored URL (mixed states happen mid-migration). */
+export function storageFor(url: string): ObjectStorage {
+  if (url.startsWith("r2://")) return r2Storage;
+  const cfg = r2Config();
+  if (cfg?.publicBase && url.startsWith(cfg.publicBase)) return r2Storage;
+  if (/\.blob\.vercel-storage\.com\//.test(url)) return vercelBlob;
+  if (url.includes("/uploads/")) return localFiles;
+  return storage();
+}
+
+export function isOnVercelBlob(url: string): boolean {
+  return /\.blob\.vercel-storage\.com\//.test(url);
 }
 
 /** Reads a locally stored object (dev only). */

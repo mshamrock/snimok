@@ -125,12 +125,13 @@ Certificate Assistant → Create a Certificate → type "Code Signing", or with
 `openssl req -x509` + `security import` + `security add-trusted-cert -p codeSign`);
 `build.sh` picks it up automatically, or pass `SNIMOK_SIGN_IDENTITY=<name>`.
 
-**GIF recording** (⌘⇧8 by default, "Record GIF" in the menu): the system
-region recorder opens; pick the area and press Record, stop with the stop
-button in the menu bar or press the shortcut again (15 s max). The app converts
-the recording to an animated GIF (10 fps, ≤ 720 px, stepping down to stay under
-4 MB) and uploads it like a screenshot. GIFs show a GIF badge and cannot be
-edited in the browser editor. Window capture moved to ⌘⇧9.
+**GIF recording** (⌘⇧8 by default, "Record GIF" in the menu): drag the area
+in Snimok's own overlay; recording starts immediately and a floating panel shows
+the elapsed time with **Stop** and **Cancel** (the shortcut again also stops;
+15 s max). Frames come from ScreenCaptureKit at up to 10 fps with their real
+durations and are encoded to an animated GIF (≤ 720 px, shrinking until the
+file is under 4 MB), then uploaded like a screenshot. GIFs show a GIF badge and
+cannot be edited in the browser editor. Window capture is on ⌘⇧9.
 
 Launching the app starts a capture. To start it silently (for example as a
 login item) pass `--no-capture`; the menu bar icon and the ⌘⇧7 hotkey still work.

@@ -4,7 +4,8 @@ import Carbon
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let capture = ScreenCapture()
-    private let recorder = ScreenRecorder()
+    private let recorder = GifRecorder()
+    private let recordingPanel = RecordingPanel()
     private let api = API()
     private var connecting = false
 
@@ -50,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         add("Capture Area", #selector(captureAreaAction))
-        add(recorder.isRunning ? "Stop GIF Recording" : "Record GIF", #selector(recordGifAction))
+        add(recorder.isRecording ? "Stop GIF Recording" : "Record GIF", #selector(recordGifAction))
         add("Capture Window", #selector(captureWindowAction))
         add("My Captures", #selector(openCaptures))
         menu.addItem(.separator())
@@ -149,8 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var status = signedIn ? "Signed in · \(host)" : "Not signed in · \(host)"
         if !shortcutOK { status += " · shortcut unavailable" }
         statusLine.title = status
-        captureItem.isEnabled = !capture.isRunning && !recorder.isRunning
-        gifItem.title = recorder.isRunning ? "Stop GIF Recording" : "Record GIF"
+        captureItem.isEnabled = !capture.isRunning && !recorder.isRecording
+        gifItem.title = recorder.isRecording ? "Stop GIF Recording" : "Record GIF"
         soundItem.state = Settings.shutterSound ? .on : .off
         dockItem.state = Settings.showInDock ? .on : .off
         windowItem.isEnabled = !capture.isRunning
@@ -202,28 +203,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func captureWindowAction() { captureWindow() }
     @objc private func recordGifAction() { recordGif() }
 
-    /// Records a region as GIF. Pressing the shortcut again stops the recording.
+    /// Records a region as GIF: our own selection overlay, then ScreenCaptureKit
+    /// with a floating Stop/Cancel panel. Pressing the shortcut again stops.
     func recordGif() {
-        if recorder.isRunning {
+        if recorder.isRecording {
             recorder.stop()
             return
         }
         guard !capture.isRunning else { return }
         let context = CaptureContext.current()
-        NSApp.dockTile.badgeLabel = "REC"
-        recorder.record(maxSeconds: 15) { [weak self] movie in
-            guard let self else { return }
-            NSApp.dockTile.badgeLabel = nil
-            guard let movie else { return }
-            if Settings.shutterSound { Shutter.play() }
-            NSApp.dockTile.badgeLabel = "GIF"
-            GIFEncoder.convert(movie: movie, maxBytes: 4_000_000) { gif in
+        RegionSelector.shared.pick { [weak self] result in
+            guard let self, let (rect, screen) = result else { return }
+            let limit: Double = 15
+            self.recordingPanel.onStop = { [weak self] in self?.recorder.stop() }
+            self.recordingPanel.onCancel = { [weak self] in self?.recorder.cancel() }
+            self.recordingPanel.show(near: rect, on: screen, limit: limit)
+            NSApp.dockTile.badgeLabel = "REC"
+            self.recorder.start(rect: rect, screen: screen, maxSeconds: limit,
+                                onTick: { [weak self] t in self?.recordingPanel.update(elapsed: t) }) { [weak self] gif in
+                guard let self else { return }
+                self.recordingPanel.hide()
                 NSApp.dockTile.badgeLabel = nil
-                try? FileManager.default.removeItem(at: movie)
-                guard let gif else {
-                    self.showError("Could not convert the recording to a GIF.")
-                    return
-                }
+                guard let gif else { return }
+                if Settings.shutterSound { Shutter.play() }
                 self.upload(gif, token: Settings.apiToken, fields: context.formFields)
             }
         }

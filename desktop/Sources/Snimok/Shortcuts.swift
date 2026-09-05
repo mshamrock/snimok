@@ -23,15 +23,29 @@ struct Shortcut: Equatable {
 
     static func byId(_ id: String?) -> Shortcut? { all.first { $0.id == id } }
 
-    /// Window capture uses the same modifiers with the next digit / letter when it exists.
+    private func variant(_ id: String, _ title: String, _ keyCode: Int, _ keyEquivalent: String) -> Shortcut {
+        Shortcut(id: id, title: title, keyCode: UInt32(keyCode), carbonModifiers: carbonModifiers, keyEquivalent: keyEquivalent, nsModifiers: nsModifiers)
+    }
+
+    /// GIF recording: same modifiers, next key (Gyazo uses ⌘⇧7 / ⌘⇧8 the same way).
+    var gifVariant: Shortcut? {
+        switch id {
+        case "cmd-shift-7": return variant("cmd-shift-8", "⌘⇧8", kVK_ANSI_8, "8")
+        case "cmd-shift-9": return variant("cmd-shift-0", "⌘⇧0", kVK_ANSI_0, "0")
+        case "ctrl-shift-s": return variant("ctrl-shift-g", "⌃⇧G", kVK_ANSI_G, "g")
+        case "ctrl-alt-s": return variant("ctrl-alt-g", "⌃⌥G", kVK_ANSI_G, "g")
+        case "f13": return Shortcut(id: "f14", title: "F14", keyCode: UInt32(kVK_F14), carbonModifiers: 0, keyEquivalent: "", nsModifiers: [])
+        default: return nil
+        }
+    }
+
+    /// Window capture: one more key along.
     var windowVariant: Shortcut? {
         switch id {
-        case "cmd-shift-7": return Shortcut(id: "cmd-shift-8", title: "⌘⇧8", keyCode: UInt32(kVK_ANSI_8), carbonModifiers: carbonModifiers, keyEquivalent: "8", nsModifiers: nsModifiers)
-        case "cmd-shift-9": return Shortcut(id: "cmd-shift-0", title: "⌘⇧0", keyCode: UInt32(kVK_ANSI_0), carbonModifiers: carbonModifiers, keyEquivalent: "0", nsModifiers: nsModifiers)
-        case "ctrl-shift-s": return Shortcut(id: "ctrl-shift-w", title: "⌃⇧W", keyCode: UInt32(kVK_ANSI_W), carbonModifiers: carbonModifiers, keyEquivalent: "w", nsModifiers: nsModifiers)
-        case "ctrl-alt-s": return Shortcut(id: "ctrl-alt-w", title: "⌃⌥W", keyCode: UInt32(kVK_ANSI_W), carbonModifiers: carbonModifiers, keyEquivalent: "w", nsModifiers: nsModifiers)
-        case "alt-space": return nil
-        case "f13": return Shortcut(id: "f14", title: "F14", keyCode: UInt32(kVK_F14), carbonModifiers: 0, keyEquivalent: "", nsModifiers: [])
+        case "cmd-shift-7": return variant("cmd-shift-9", "⌘⇧9", kVK_ANSI_9, "9")
+        case "ctrl-shift-s": return variant("ctrl-shift-w", "⌃⇧W", kVK_ANSI_W, "w")
+        case "ctrl-alt-s": return variant("ctrl-alt-w", "⌃⌥W", kVK_ANSI_W, "w")
+        case "f13": return Shortcut(id: "f15", title: "F15", keyCode: UInt32(kVK_F15), carbonModifiers: 0, keyEquivalent: "", nsModifiers: [])
         default: return nil
         }
     }

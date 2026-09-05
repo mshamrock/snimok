@@ -4,6 +4,7 @@ import Carbon
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let capture = ScreenCapture()
+    private let recorder = ScreenRecorder()
     private let api = API()
     private var connecting = false
 
@@ -13,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusLine: NSMenuItem!
     private var soundItem: NSMenuItem!
     private var dockItem: NSMenuItem!
+    private var gifItem: NSMenuItem!
     private var shortcutMenu: NSMenu!
     private var shortcutOK = true
 
@@ -48,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         add("Capture Area", #selector(captureAreaAction))
+        add(recorder.isRunning ? "Stop GIF Recording" : "Record GIF", #selector(recordGifAction))
         add("Capture Window", #selector(captureWindowAction))
         add("My Captures", #selector(openCaptures))
         menu.addItem(.separator())
@@ -86,6 +89,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         captureItem = NSMenuItem(title: "Capture Area", action: #selector(captureAreaAction), keyEquivalent: "")
         captureItem.target = self
         menu.addItem(captureItem)
+
+        gifItem = NSMenuItem(title: "Record GIF", action: #selector(recordGifAction), keyEquivalent: "")
+        gifItem.target = self
+        menu.addItem(gifItem)
 
         windowItem = NSMenuItem(title: "Capture Window", action: #selector(captureWindowAction), keyEquivalent: "")
         windowItem.target = self
@@ -142,7 +149,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var status = signedIn ? "Signed in · \(host)" : "Not signed in · \(host)"
         if !shortcutOK { status += " · shortcut unavailable" }
         statusLine.title = status
-        captureItem.isEnabled = !capture.isRunning
+        captureItem.isEnabled = !capture.isRunning && !recorder.isRunning
+        gifItem.title = recorder.isRunning ? "Stop GIF Recording" : "Record GIF"
         soundItem.state = Settings.shutterSound ? .on : .off
         dockItem.state = Settings.showInDock ? .on : .off
         windowItem.isEnabled = !capture.isRunning
@@ -160,6 +168,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         captureItem.keyEquivalent = sc.keyEquivalent
         captureItem.keyEquivalentModifierMask = sc.nsModifiers
+        if let g = sc.gifVariant {
+            ok = HotKeys.shared.register(keyCode: g.keyCode, modifiers: g.carbonModifiers) { [weak self] in
+                self?.recordGif()
+            } && ok
+            gifItem.keyEquivalent = g.keyEquivalent
+            gifItem.keyEquivalentModifierMask = g.nsModifiers
+        } else {
+            gifItem.keyEquivalent = ""
+        }
         if let w = sc.windowVariant {
             ok = HotKeys.shared.register(keyCode: w.keyCode, modifiers: w.carbonModifiers) { [weak self] in
                 self?.captureWindow()
@@ -183,6 +200,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func captureAreaAction() { captureArea() }
     @objc private func captureWindowAction() { captureWindow() }
+    @objc private func recordGifAction() { recordGif() }
+
+    /// Records a region as GIF. Pressing the shortcut again stops the recording.
+    func recordGif() {
+        if recorder.isRunning {
+            recorder.stop()
+            return
+        }
+        guard !capture.isRunning else { return }
+        let context = CaptureContext.current()
+        NSApp.dockTile.badgeLabel = "REC"
+        recorder.record(maxSeconds: 15) { [weak self] movie in
+            guard let self else { return }
+            NSApp.dockTile.badgeLabel = nil
+            guard let movie else { return }
+            if Settings.shutterSound { Shutter.play() }
+            NSApp.dockTile.badgeLabel = "GIF"
+            GIFEncoder.convert(movie: movie, maxBytes: 4_000_000) { gif in
+                NSApp.dockTile.badgeLabel = nil
+                try? FileManager.default.removeItem(at: movie)
+                guard let gif else {
+                    self.showError("Could not convert the recording to a GIF.")
+                    return
+                }
+                self.upload(gif, token: Settings.apiToken, fields: context.formFields)
+            }
+        }
+    }
 
     func captureArea() { startCapture(mode: .area) }
     func captureWindow() { startCapture(mode: .window) }

@@ -87,8 +87,16 @@ final class API {
             body.append("\r\n".data(using: .utf8)!)
         }
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"imagedata\"; filename=\"screenshot.png\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/png\r\n\r\n".data(using: .utf8)!)
+        let ext = file.pathExtension.lowercased().isEmpty ? "png" : file.pathExtension.lowercased()
+        let mime: String
+        switch ext {
+        case "gif": mime = "image/gif"
+        case "jpg", "jpeg": mime = "image/jpeg"
+        case "webp": mime = "image/webp"
+        default: mime = "image/png"
+        }
+        body.append("Content-Disposition: form-data; name=\"imagedata\"; filename=\"capture.\(ext)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mime)\r\n\r\n".data(using: .utf8)!)
         body.append(data)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 

@@ -148,6 +148,7 @@ export default async function CapturesPage({
                         {c.title ?? timeFmt.format(c.createdAt)}
                       </Link>
                       <span className="flex shrink-0 items-center gap-1">
+                        {c.contentType === "image/gif" ? <span className="label rounded bg-accent/20 px-1 text-accent">GIF</span> : null}
                         {c.accessPolicy === "only_me" ? <Icon name="lock" className="h-3 w-3" /> : null}
                         {c.width && c.height ? <span className="data text-[10.5px]">{c.width}×{c.height}</span> : null}
                       </span>

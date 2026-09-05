@@ -67,6 +67,7 @@ export function CaptureView({
   tagSuggestions: string[];
 }) {
   const router = useRouter();
+  const isGif = capture.contentType === "image/gif";
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, startSave] = useTransition();
@@ -261,9 +262,11 @@ export function CaptureView({
 
             {isOwner ? (
               <>
-                <button className={toolBtn} title="Edit image" aria-label="Edit image" onClick={() => setEditing(true)}>
-                  <Icon name="edit" />
-                </button>
+                {!isGif ? (
+                  <button className={toolBtn} title="Edit image" aria-label="Edit image" onClick={() => setEditing(true)}>
+                    <Icon name="edit" />
+                  </button>
+                ) : null}
                   <button
                     className={`${toolBtn} ${policy === "only_me" ? "text-accent" : ""}`}
                     title={policy === "only_me" ? "Only you can view" : "Anyone with the link can view"}
@@ -473,6 +476,7 @@ export function CaptureView({
         ) : null}
         <dt className="label pt-0.5">Image</dt>
         <dd className="data text-[13px]">
+          {isGif ? <span className="label mr-2 rounded bg-accent/20 px-1.5 py-0.5 text-accent">GIF</span> : null}
           {capture.width && capture.height ? `${capture.width}×${capture.height} · ` : ""}
           {formatBytes(capture.sizeBytes)} · {capture.contentType.replace("image/", "").toUpperCase()}
         </dd>

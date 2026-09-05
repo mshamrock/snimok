@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var windowItem: NSMenuItem!
     private var accountItem: NSMenuItem!
     private var statusLine: NSMenuItem!
+    private var soundItem: NSMenuItem!
     private var shortcutMenu: NSMenu!
     private var shortcutOK = true
 
@@ -82,6 +83,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         accountItem.target = self
         menu.addItem(accountItem)
 
+        soundItem = NSMenuItem(title: "Shutter Sound", action: #selector(toggleSound), keyEquivalent: "")
+        soundItem.target = self
+        menu.addItem(soundItem)
+
         let server = NSMenuItem(title: "Server URL…", action: #selector(changeServer), keyEquivalent: "")
         server.target = self
         menu.addItem(server)
@@ -101,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !shortcutOK { status += " · shortcut unavailable" }
         statusLine.title = status
         captureItem.isEnabled = !capture.isRunning
+        soundItem.state = Settings.shutterSound ? .on : .off
         windowItem.isEnabled = !capture.isRunning
         let current = Settings.shortcutId
         for item in shortcutMenu.items {
@@ -147,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !capture.isRunning else { return }
         // Record what the user is looking at before the crosshair takes over.
         let context = CaptureContext.current()
-        capture.selectArea(mode: mode) { [weak self] file in
+        capture.selectArea(mode: mode, silent: !Settings.shutterSound) { [weak self] file in
             guard let self, let file else { return }
             var fields = context.formFields
             // Recognise text on-device so the capture is searchable, then upload.
@@ -168,6 +174,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             signIn()
         }
+    }
+
+    @objc private func toggleSound() {
+        Settings.shutterSound.toggle()
     }
 
     @objc private func changeServer() {
@@ -209,7 +219,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // Go through /claim so this browser is tied to the device and can
                 // edit the capture (and adopt it if the user later signs in).
                 NSWorkspace.shared.open(self.api.claimURL(next: "/i/\(r.id)"))
-                NSSound(named: "Glass")?.play()
             case .failure(.unauthorized) where token != nil:
                 // Token revoked on the server: forget it and fall back to anonymous.
                 Settings.apiToken = nil

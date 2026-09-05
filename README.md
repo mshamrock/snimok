@@ -59,6 +59,9 @@ Vercel Blob on the Hobby plan gets suspended for 30 days once its limits are hit
    `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
    Optional `R2_PUBLIC_BASE_URL` if the bucket has a public custom domain
    (then images are served straight from Cloudflare instead of through `/r/<id>`).
+   Production uses `https://img.snimok.xyz`; after adding the variable run
+   `POST /api/admin/migrate-storage?key=$DEBUG_KEY` with body `{"mode":"publicize"}`
+   (repeat until `remaining` is 0) to rewrite existing private references.
 4. Redeploy. `GET /api/debug/blob?key=$DEBUG_KEY` shows a `default-storage (r2)`
    probe that puts, reads and deletes a test object.
 5. Move existing captures off Vercel Blob:

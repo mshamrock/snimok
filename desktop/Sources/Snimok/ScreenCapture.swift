@@ -19,11 +19,11 @@ final class ScreenCapture {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        // -i interactive, -r no DPI metadata, -t png format,
-        // -x suppresses the system shutter sound, -W start in window mode,
-        // -o omit the window shadow
-        var args = ["-i", "-r", "-t", "png"]
-        if silent { args.append("-x") }
+        // -i interactive, -r no DPI metadata, -t png format, -W start in
+        // window mode, -o omit the window shadow. -x always: macOS 26 plays
+        // two system sounds per capture; we play a single shutter ourselves.
+        _ = silent
+        var args = ["-i", "-x", "-r", "-t", "png"]
         if mode == .window { args += ["-W", "-o"] }
         process.arguments = args + [file.path]
         process.terminationHandler = { [weak self] _ in

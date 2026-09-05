@@ -191,8 +191,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !capture.isRunning else { return }
         // Record what the user is looking at before the crosshair takes over.
         let context = CaptureContext.current()
-        capture.selectArea(mode: mode, silent: !Settings.shutterSound) { [weak self] file in
+        capture.selectArea(mode: mode, silent: true) { [weak self] file in
             guard let self, let file else { return }
+            if Settings.shutterSound { Shutter.play() }
             var fields = context.formFields
             // Recognise text on-device so the capture is searchable, then upload.
             OCR.recognize(imageAt: file) { text in
@@ -316,5 +317,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.messageText = "Snimok"
         alert.informativeText = message
         alert.runModal()
+    }
+}
+
+/// The classic macOS shutter click, played once per capture.
+enum Shutter {
+    private static let sound: NSSound? = {
+        let candidates = [
+            "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Grab.aif",
+            "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Shutter.aif",
+        ]
+        for path in candidates {
+            if FileManager.default.fileExists(atPath: path), let s = NSSound(contentsOfFile: path, byReference: true) {
+                return s
+            }
+        }
+        return NSSound(named: "Pop")
+    }()
+
+    static func play() {
+        sound?.stop()
+        sound?.play()
     }
 }

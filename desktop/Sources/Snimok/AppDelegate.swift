@@ -12,13 +12,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var accountItem: NSMenuItem!
     private var statusLine: NSMenuItem!
     private var soundItem: NSMenuItem!
+    private var dockItem: NSMenuItem!
     private var shortcutMenu: NSMenu!
     private var shortcutOK = true
 
     // MARK: Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        CaptureContext.startTracking()
+        applyActivationPolicy()
         setupStatusItem()
         applyShortcut(Shortcut.byId(Settings.shortcutId) ?? Shortcut.defaultArea)
         // Gyazo behaviour: launching the app *is* the capture gesture.
@@ -36,10 +38,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return false
     }
 
+    /// Right-click menu on the Dock icon: same actions as the menu-bar menu.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        func add(_ title: String, _ action: Selector, state: NSControl.StateValue = .off) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            item.state = state
+            menu.addItem(item)
+        }
+        add("Capture Area", #selector(captureAreaAction))
+        add("Capture Window", #selector(captureWindowAction))
+        add("My Captures", #selector(openCaptures))
+        menu.addItem(.separator())
+        add(Settings.apiToken != nil ? "Sign Out" : "Sign In…", #selector(accountAction))
+        add("Shutter Sound", #selector(toggleSound), state: Settings.shutterSound ? .on : .off)
+        add("Show in Dock", #selector(toggleDock), state: Settings.showInDock ? .on : .off)
+        add("Server URL…", #selector(changeServer))
+        return menu
+    }
+
+    private func applyActivationPolicy() {
+        NSApp.setActivationPolicy(Settings.showInDock ? .regular : .accessory)
+    }
+
+    @objc private func toggleDock() {
+        Settings.showInDock.toggle()
+        applyActivationPolicy()
+    }
+
     // MARK: Status bar
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.autosaveName = "SnimokStatusItem"
+        statusItem.isVisible = true
         if let button = statusItem.button {
             let img = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "Snimok")
             img?.isTemplate = true
@@ -87,6 +120,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         soundItem.target = self
         menu.addItem(soundItem)
 
+        dockItem = NSMenuItem(title: "Show in Dock", action: #selector(toggleDock), keyEquivalent: "")
+        dockItem.target = self
+        menu.addItem(dockItem)
+
         let server = NSMenuItem(title: "Server URL…", action: #selector(changeServer), keyEquivalent: "")
         server.target = self
         menu.addItem(server)
@@ -107,6 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusLine.title = status
         captureItem.isEnabled = !capture.isRunning
         soundItem.state = Settings.shutterSound ? .on : .off
+        dockItem.state = Settings.showInDock ? .on : .off
         windowItem.isEnabled = !capture.isRunning
         let current = Settings.shortcutId
         for item in shortcutMenu.items {

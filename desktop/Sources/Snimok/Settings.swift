@@ -44,6 +44,13 @@ enum Settings {
         set { defaults.set(newValue, forKey: "shutterSound") }
     }
 
+    /// Keep an icon in the Dock while running (its context menu mirrors the
+    /// menu-bar menu; useful when the menu bar is full and hides our item).
+    static var showInDock: Bool {
+        get { defaults.object(forKey: "showInDock") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "showInDock") }
+    }
+
     static var apiToken: String? {
         get { defaults.string(forKey: tokenKey) }
         set {

@@ -20,12 +20,34 @@ struct CaptureContext {
         return f
     }
 
-    /// Snapshot of the frontmost app. Must be taken *before* the crosshair
-    /// appears; the app itself is an accessory and never becomes frontmost.
+    /// The last app the user was in that is not Snimok. When Snimok shows a
+    /// Dock icon, clicking it makes Snimok frontmost, so we remember the
+    /// previous app instead.
+    private static var lastOtherApp: NSRunningApplication?
+    private static var observing = false
+
+    static func startTracking() {
+        guard !observing else { return }
+        observing = true
+        if let app = NSWorkspace.shared.frontmostApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier {
+            lastOtherApp = app
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+            lastOtherApp = app
+        }
+    }
+
+    /// Snapshot of the app the user is looking at. Taken *before* the
+    /// crosshair appears.
     static func current() -> CaptureContext {
         var ctx = CaptureContext()
-        guard let app = NSWorkspace.shared.frontmostApplication,
-              app.bundleIdentifier != Bundle.main.bundleIdentifier else { return ctx }
+        var candidate = NSWorkspace.shared.frontmostApplication
+        if candidate?.bundleIdentifier == Bundle.main.bundleIdentifier { candidate = lastOtherApp }
+        guard let app = candidate, app.bundleIdentifier != Bundle.main.bundleIdentifier else { return ctx }
         ctx.appName = app.localizedName
         ctx.bundleId = app.bundleIdentifier
         ctx.windowTitle = frontWindowTitle(pid: app.processIdentifier)

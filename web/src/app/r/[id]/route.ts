@@ -21,7 +21,12 @@ export async function GET(
     return new NextResponse("This capture is private", { status: 403 });
   }
 
-  if (capture.access !== "private") {
+  const params = new URL(req.url).searchParams;
+  // `download=1` always streams with an attachment disposition: browsers ignore
+  // the `download` attribute on cross-origin links (the image lives on img.*).
+  const download = params.has("download");
+
+  if (capture.access !== "private" && !download) {
     return NextResponse.redirect(capture.blobUrl, {
       status: 302,
       headers: { "Cache-Control": "no-store" },
@@ -38,15 +43,19 @@ export async function GET(
     return unavailableTile(capture.width ?? 800, capture.height ?? 500);
   }
   if (!obj) return new NextResponse("Not found", { status: 404 });
-  const versioned = new URL(req.url).searchParams.has("v");
+  const versioned = params.has("v");
+  const ext = capture.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+  const safeTitle = (capture.title ?? "").replace(/[^\w\-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  const filename = `${safeTitle || "snimok"}-${capture.id}.${ext}`;
   const headers: Record<string, string> = {
     "Content-Type": capture.contentType,
-    "Cache-Control": restricted
-      ? "private, no-store"
-      : versioned
-        ? "public, max-age=31536000, s-maxage=31536000, immutable"
-        : "public, max-age=0, s-maxage=60",
-    "Content-Disposition": "inline",
+    "Cache-Control":
+      restricted || download
+        ? "private, no-store"
+        : versioned
+          ? "public, max-age=31536000, s-maxage=31536000, immutable"
+          : "public, max-age=0, s-maxage=60",
+    "Content-Disposition": download ? `attachment; filename="${filename}"` : "inline",
   };
   if (obj.size) headers["Content-Length"] = String(obj.size);
   return new NextResponse(obj.stream, { headers });

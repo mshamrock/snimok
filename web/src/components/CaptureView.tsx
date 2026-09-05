@@ -305,8 +305,7 @@ export function CaptureView({
               className={toolBtn}
               title="Download"
               aria-label="Download"
-              href={capture.url}
-              download={`snimok-${capture.id}.${capture.contentType === "image/jpeg" ? "jpg" : "png"}`}
+              href={`/r/${capture.id}?download=1`}
             >
               <Icon name="download" />
             </a>

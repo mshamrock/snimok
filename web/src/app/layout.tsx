@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { TimezoneCookie } from "@/components/TimezoneCookie";
 
 const instrument = Instrument_Sans({
   variable: "--font-instrument",
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${instrument.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <TimezoneCookie />
+        {children}
+      </body>
     </html>
   );
 }

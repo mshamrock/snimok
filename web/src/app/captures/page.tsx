@@ -4,23 +4,25 @@ import { Header } from "@/components/Header";
 import { Icon } from "@/components/Icon";
 import { Corners } from "@/components/Corners";
 import { getCurrentUser } from "@/lib/auth";
-import { deviceIdFromRequest, imageUrl, listCaptures } from "@/lib/captures";
+import { deviceIdFromRequest, imageUrl, linkDeviceCaptures, listCaptures } from "@/lib/captures";
+import { dayKeyIn, getTimeZone } from "@/lib/tz";
 import type { Capture } from "@/db/schema";
 
 export const metadata = { title: "Captures" };
 
 const PAGE = 60;
 
-function groupByDay(items: Capture[]) {
+function groupByDay(items: Capture[], tz: string) {
   const groups: { key: string; label: string; items: Capture[] }[] = [];
   const fmt = new Intl.DateTimeFormat("en", {
+    timeZone: tz,
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
   for (const c of items) {
-    const key = c.createdAt.toISOString().slice(0, 10);
+    const key = dayKeyIn(c.createdAt, tz);
     let g = groups[groups.length - 1];
     if (!g || g.key !== key) {
       g = { key, label: fmt.format(c.createdAt), items: [] };
@@ -41,8 +43,11 @@ export default async function CapturesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [user, deviceId] = await Promise.all([getCurrentUser(), deviceIdFromRequest()]);
+  const [user, deviceId, tz] = await Promise.all([getCurrentUser(), deviceIdFromRequest(), getTimeZone()]);
   if (!user && !deviceId) redirect("/login?next=%2Fcaptures");
+  // A signed-in browser that also carries the desktop's device cookie adopts
+  // that device's anonymous captures, so the app's uploads show up here.
+  if (user && deviceId) await linkDeviceCaptures(user.id, deviceId).catch(() => 0);
   const owner = user ? { userId: user.id } : { deviceId: deviceId! };
 
   const sp = await searchParams;
@@ -57,18 +62,18 @@ export default async function CapturesPage({
   }
   const before = first(sp.before);
   const beforeDate = before && !Number.isNaN(Date.parse(before)) ? new Date(before) : undefined;
-  const filters = { q, tag, app, day };
+  const filters = { q, tag, app, day, tz };
   const hasFilters = !!(q || tag || app || day);
 
   const rows = await listCaptures(owner, { ...filters, limit: PAGE + 1, before: beforeDate });
   const hasMore = rows.length > PAGE;
   const items = rows.slice(0, PAGE);
-  const groups = groupByDay(items);
-  const timeFmt = new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit" });
+  const groups = groupByDay(items, tz);
+  const timeFmt = new Intl.DateTimeFormat("en", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
 
   const withParams = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ ...filters, ...extra })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ ...filters, ...extra })) if (v && k !== "tz") p.set(k, v);
     const s = p.toString();
     return `/captures${s ? `?${s}` : ""}`;
   };

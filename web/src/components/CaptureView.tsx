@@ -82,7 +82,7 @@ export function CaptureView({
 
   const created = new Date(capture.createdAt);
   const dateLabel = created.toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
-  const dayKey = created.toISOString().slice(0, 10);
+  const dayKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
 
   const notify = useCallback((msg: string) => {
     setToast(msg);

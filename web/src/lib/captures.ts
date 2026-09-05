@@ -21,6 +21,7 @@ import type { AccessPolicy, Capture, User } from "@/db/schema";
 import { captureId } from "@/lib/ids";
 import { storage, storageFor, type BlobAccess, type OpenedObject } from "@/lib/storage";
 import { appUrl } from "@/lib/env";
+import { zonedDayStart } from "@/lib/tz";
 import {
   ALLOWED_TYPES,
   extensionFor,
@@ -299,8 +300,9 @@ export type ListFilters = {
   q?: string;
   tag?: string;
   app?: string;
-  /** YYYY-MM-DD (UTC day). */
+  /** YYYY-MM-DD in the viewer's time zone (`tz`, default UTC). */
   day?: string;
+  tz?: string;
 };
 
 function ownerWhere(owner: CaptureOwner): SQL {
@@ -333,8 +335,8 @@ function filtersWhere(owner: CaptureOwner, f: ListFilters): SQL {
   if (f.tag) conds.push(arrayContains(c.tags, [f.tag.toLowerCase()]));
   if (f.app) conds.push(eq(c.app, f.app));
   if (f.day && /^\d{4}-\d{2}-\d{2}$/.test(f.day)) {
-    const start = new Date(`${f.day}T00:00:00.000Z`);
-    if (!Number.isNaN(start.getTime())) {
+    const start = zonedDayStart(f.day, f.tz ?? "UTC");
+    if (start) {
       const end = new Date(start.getTime() + 86_400_000);
       conds.push(gte(c.createdAt, start), lt(c.createdAt, end));
     }

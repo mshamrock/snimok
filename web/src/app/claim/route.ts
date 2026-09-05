@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { DEVICE_COOKIE, isValidDeviceId } from "@/lib/captures";
+import { getCurrentUser } from "@/lib/auth";
+import { DEVICE_COOKIE, isValidDeviceId, linkDeviceCaptures } from "@/lib/captures";
 import { appUrl } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -20,6 +21,9 @@ export async function GET(req: Request) {
     nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/captures";
   const res = NextResponse.redirect(`${appUrl()}${next}`, { status: 302 });
   if (isValidDeviceId(device)) {
+    // Already signed in here? Then this device's captures belong to the account.
+    const user = await getCurrentUser();
+    if (user) await linkDeviceCaptures(user.id, device).catch(() => 0);
     res.cookies.set(DEVICE_COOKIE, device, {
       httpOnly: true,
       sameSite: "lax",

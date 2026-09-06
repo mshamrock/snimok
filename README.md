@@ -151,8 +151,16 @@ calls `POST /api/import/gyazo` in slices (each under Vercel's 60 s limit) until
 the whole library is copied: images keep their original capture dates, app,
 page title and URL, description and OCR text, and get the tag `gyazo`. Imports
 are idempotent (`captures.source_id = gyazo:<image_id>`), so re-running only
-adds what is missing. The token is held in the page during the import and never
-stored server-side.
+adds what is missing: if the import stops (closed tab, network, Gyazo rate
+limit), press *Continue import* and it resumes from page 1, skipping what is
+already here in seconds. Each slice imports up to six images in parallel and
+transient errors are retried with backoff; the page shows Gyazo's reported
+total, the current page and your Gyazo plan. The token is held in the page
+during the import and never stored server-side.
+
+To test the importer without a Gyazo account run `node scripts/mock-gyazo.mjs`
+and start the dev server with `GYAZO_API_BASE=http://localhost:4567` (the
+`snimok-web-mockgyazo` entry in `.claude/launch.json` does exactly that).
 
 **From the command line** (same result, useful for very large libraries):
 `web/scripts/import-gyazo.mjs`.

@@ -12,6 +12,20 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "snimok-web-mockgyazo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "GYAZO_API_BASE=http://localhost:4567",
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

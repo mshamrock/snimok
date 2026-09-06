@@ -7,7 +7,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const PER_PAGE = 100;
-const TIME_BUDGET_MS = 40_000;
+const TIME_BUDGET_MS = 30_000; // leaves room for one in-flight chunk under Vercel's 60 s cap
+/** Images downloaded + stored at the same time within one call. */
+const CONCURRENCY = 6;
 const MAX_BYTES = 25 * 1024 * 1024;
 const GYAZO_API = process.env.GYAZO_API_BASE ?? "https://api.gyazo.com";
 
@@ -72,6 +74,7 @@ export async function POST(req: Request) {
   }
   const images = (await listRes.json()) as GyazoImage[];
   const total = Number(listRes.headers.get("x-total-count") ?? 0) || null;
+  const userType = listRes.headers.get("x-user-type");
 
   const slice = images.slice(offset);
   const already = await existingSourceIds(user.id, slice.map((i) => `gyazo:${i.image_id}`));
@@ -81,26 +84,24 @@ export async function POST(req: Request) {
   const failed: { id: string; error: string }[] = [];
   const links: string[] = [];
 
-  for (const img of slice) {
-    if (Date.now() - started > TIME_BUDGET_MS) break;
-    offset++;
+  async function importOne(img: GyazoImage) {
     const sourceId = `gyazo:${img.image_id}`;
     if (already.has(sourceId)) {
       skipped++;
-      continue;
+      return;
     }
     if (!img.url) {
       skipped++; // videos / unavailable images have no direct URL
-      continue;
+      return;
     }
     try {
-      const res = await withTimeout(fetch(img.url, { cache: "no-store" }), 20_000, "downloading the image");
+      const res = await withTimeout(fetch(img.url, { cache: "no-store" }), 15_000, "downloading the image");
       if (!res.ok) throw new Error(`download failed (${res.status})`);
       const bytes = new Uint8Array(await res.arrayBuffer());
       if (bytes.byteLength > MAX_BYTES) throw new Error("image larger than 25 MB");
       const m = img.metadata ?? {};
       const capture = await storeCapture({
-        userId: user.id,
+        userId: user!.id,
         deviceId: null,
         bytes,
         declaredType: res.headers.get("content-type")?.split(";")[0] ?? `image/${img.type ?? "png"}`,
@@ -123,11 +124,26 @@ export async function POST(req: Request) {
     }
   }
 
+  // Chunks of CONCURRENCY, so the cursor (`offset`) only ever points past
+  // fully handled items even though downloads run in parallel.
+  for (let i = 0; i < slice.length; i += CONCURRENCY) {
+    if (Date.now() - started > TIME_BUDGET_MS) break;
+    const chunk = slice.slice(i, i + CONCURRENCY);
+    await Promise.all(chunk.map(importOne));
+    offset += chunk.length;
+  }
+
   const pageDone = offset >= images.length;
-  const lastPage = images.length < PER_PAGE;
-  const done = pageDone && lastPage;
+  // Trust X-Total-Count when Gyazo sends it: a short page in the middle of the
+  // library (hidden or deleted items) must not end the import early.
+  const exhausted =
+    images.length === 0 || (total !== null ? page * PER_PAGE >= total : images.length < PER_PAGE);
+  const done = pageDone && exhausted;
   return NextResponse.json({
     total,
+    pages: total !== null ? Math.ceil(total / PER_PAGE) : null,
+    page,
+    userType,
     imported,
     skipped,
     failed,

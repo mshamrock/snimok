@@ -8,8 +8,10 @@ import {
   eq,
   gt,
   gte,
+  count,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   lt,
   or,
@@ -300,10 +302,27 @@ export type ListFilters = {
   q?: string;
   tag?: string;
   app?: string;
+  /** Host of `sourceUrl` without "www." (see `siteExpr`). */
+  site?: string;
+  /** "gif" = animated captures only, "image" = everything but GIFs. */
+  type?: "gif" | "image";
+  /** "only_me" = private captures only. */
+  access?: "only_me";
   /** YYYY-MM-DD in the viewer's time zone (`tz`, default UTC). */
   day?: string;
   tz?: string;
 };
+
+/** SQL for the host part of `source_url` ("https://www.foo.com/x" → "foo.com"). */
+const siteExpr = sql<string>`regexp_replace(split_part(split_part(lower(${schema.captures.sourceUrl}), '://', 2), '/', 1), '^www\\.', '')`;
+
+/** Turns a URL into the same host form `siteExpr` produces, or null. */
+export function siteOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i.exec(url.trim());
+  if (!m) return null;
+  return m[1].toLowerCase().replace(/^www\./, "") || null;
+}
 
 function ownerWhere(owner: CaptureOwner): SQL {
   return "userId" in owner
@@ -334,6 +353,10 @@ function filtersWhere(owner: CaptureOwner, f: ListFilters): SQL {
   }
   if (f.tag) conds.push(arrayContains(c.tags, [f.tag.toLowerCase()]));
   if (f.app) conds.push(eq(c.app, f.app));
+  if (f.site) conds.push(sql`${siteExpr} = ${f.site.toLowerCase()}`);
+  if (f.type === "gif") conds.push(eq(c.contentType, "image/gif"));
+  if (f.type === "image") conds.push(sql`${c.contentType} <> 'image/gif'`);
+  if (f.access === "only_me") conds.push(eq(c.accessPolicy, "only_me"));
   if (f.day && /^\d{4}-\d{2}-\d{2}$/.test(f.day)) {
     const start = zonedDayStart(f.day, f.tz ?? "UTC");
     if (start) {
@@ -394,6 +417,70 @@ export async function neighborIds(
 }
 
 /** Most used tags of an owner (from the latest captures), for suggestions. */
+/** Number of captures the owner has (optionally under the same filters as `listCaptures`). */
+export async function countCaptures(owner: CaptureOwner, f: ListFilters = {}): Promise<number> {
+  const rows = await (await db())
+    .select({ n: count() })
+    .from(schema.captures)
+    .where(filtersWhere(owner, { ...f, before: undefined, limit: undefined }));
+  return rows[0]?.n ?? 0;
+}
+
+/** Totals for the library sidebar in one query. */
+export async function libraryStats(
+  owner: CaptureOwner,
+): Promise<{ total: number; gifs: number; privateCount: number }> {
+  const c = schema.captures;
+  const rows = await (await db())
+    .select({
+      total: count(),
+      gifs: sql<number>`count(*) filter (where ${c.contentType} = 'image/gif')`.mapWith(Number),
+      privateCount: sql<number>`count(*) filter (where ${c.accessPolicy} = 'only_me')`.mapWith(Number),
+    })
+    .from(c)
+    .where(ownerWhere(owner));
+  return rows[0] ?? { total: 0, gifs: 0, privateCount: 0 };
+}
+
+export type Facet = { name: string; n: number };
+
+/** Every tag the owner uses, most used first. */
+export async function tagCounts(owner: CaptureOwner): Promise<Facet[]> {
+  const c = schema.captures;
+  const tag = sql<string>`t.tag`;
+  const rows = await (await db())
+    .select({ name: tag, n: count() })
+    .from(sql`${c}, unnest(${c.tags}) AS t(tag)`)
+    .where(ownerWhere(owner))
+    .groupBy(tag)
+    .orderBy(desc(count()), tag);
+  return rows.map((r) => ({ name: r.name, n: Number(r.n) }));
+}
+
+/** Every source application, most frequent first. */
+export async function appCounts(owner: CaptureOwner): Promise<Facet[]> {
+  const c = schema.captures;
+  const rows = await (await db())
+    .select({ name: c.app, n: count() })
+    .from(c)
+    .where(and(ownerWhere(owner), isNotNull(c.app)))
+    .groupBy(c.app)
+    .orderBy(desc(count()), c.app);
+  return rows.flatMap((r) => (r.name ? [{ name: r.name, n: Number(r.n) }] : []));
+}
+
+/** Every website captures came from (host of `sourceUrl`), most frequent first. */
+export async function siteCounts(owner: CaptureOwner): Promise<Facet[]> {
+  const c = schema.captures;
+  const rows = await (await db())
+    .select({ name: siteExpr, n: count() })
+    .from(c)
+    .where(and(ownerWhere(owner), isNotNull(c.sourceUrl), sql`${siteExpr} <> ''`))
+    .groupBy(siteExpr)
+    .orderBy(desc(count()), siteExpr);
+  return rows.flatMap((r) => (r.name ? [{ name: r.name, n: Number(r.n) }] : []));
+}
+
 export async function topTags(owner: CaptureOwner, limit = 12): Promise<string[]> {
   const rows = await (await db())
     .select({ tags: schema.captures.tags })

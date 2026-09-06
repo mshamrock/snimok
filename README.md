@@ -28,9 +28,15 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    navigation through your timeline, tags with suggestions, a description, and
    metadata: user, upload time, app, source page (title + URL) and the text
    recognised on the image.
-5. `/captures` is the timeline grouped by day with search across titles,
-   descriptions, tags (`#tag`), OCR text, app and source, plus tag / app / day
-   filters.
+5. `/captures` is the library: a sidebar (Captures with the total, Tags, Apps,
+   Sites, plus GIFs and Only-me filters), four layouts remembered per browser
+   (large / medium / small tiles and a list; `snimok_view` cookie), an Upload
+   button for images from disk, and the timeline grouped by day in the
+   viewer's time zone. Search covers titles, descriptions, tags, OCR text, app
+   and source page; the box understands `#tag`, `app:Safari`,
+   `site:github.com`, `is:gif` and `is:private`, and suggests your tags and
+   apps as you type. `/tags`, `/apps` and `/sites` list every value with
+   counts and link back to the filtered timeline.
 6. The desktop app records the frontmost app, its window title and, for
    browsers, the URL of the active tab, runs Apple Vision OCR on the image
    (Russian + English) and sends everything with the upload. ⌘⇧7 captures an

@@ -5,14 +5,19 @@ import { logout } from "@/app/(auth)/actions";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 
-export async function Header() {
+/**
+ * Site header. `suggestions` (tags as "#x", apps as "app:X", "is:gif"…) feed a
+ * native datalist under the search box on library pages.
+ */
+export async function Header({ suggestions }: { suggestions?: string[] } = {}) {
   const [user, deviceId] = await Promise.all([
     getCurrentUser(),
     deviceIdFromRequest(),
   ]);
+  const listId = suggestions?.length ? "snimok-suggest" : undefined;
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+      <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-4">
         <Link href={user ? "/captures" : "/"} className="flex shrink-0 items-center gap-2">
           <Logo className="h-6 w-6" />
           <span className="font-semibold tracking-tight">Snimok</span>
@@ -20,7 +25,19 @@ export async function Header() {
         {user || deviceId ? (
           <form action="/captures" className="relative hidden max-w-md flex-1 md:block">
             <Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
-            <input className="input py-1.5 pl-9" name="q" placeholder="Search all captures" />
+            <input
+              className="input py-1.5 pl-9"
+              name="q"
+              list={listId}
+              autoComplete="off"
+              placeholder="Search all captures"
+              aria-label="Search all captures"
+            />
+            {listId ? (
+              <datalist id={listId}>
+                {suggestions!.map((s) => <option key={s} value={s} />)}
+              </datalist>
+            ) : null}
           </form>
         ) : null}
         <nav className="flex shrink-0 items-center gap-1 text-sm">

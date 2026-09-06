@@ -15,6 +15,19 @@ const PATHS: Record<string, string> = {
   tag: "M3 12V4h8l9 9-8 8zM7.5 7.5h.01",
   link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
   external: "M14 4h6v6M20 4l-9 9M19 14v6H4V5h6",
+  // Library navigation
+  image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01",
+  hash: "M5 9h14M5 15h14M10 4l-2 16M16 4l-2 16",
+  apps: "M4 4h16v16H4zM4 9h16M9 9v11",
+  globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18",
+  film: "M4 5h16v14H4zM8 5v14M16 5v14M4 10h4M4 14h4M16 10h4M16 14h4",
+  upload: "M12 16V4M6 9l6-6 6 6M4 20h16",
+  // View modes
+  "grid-lg": "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  "grid": "M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z",
+  "grid-sm": "M4 4h3v3H4zM9.5 4h3v3h-3zM15 4h3v3h-3zM4 9.5h3v3H4zM9.5 9.5h3v3h-3zM15 9.5h3v3h-3zM4 15h3v3H4zM9.5 15h3v3h-3zM15 15h3v3h-3z",
+  list: "M4 6h16M4 12h16M4 18h16",
+  chevron: "M6 9l6 6 6-6",
 };
 
 export function Icon({

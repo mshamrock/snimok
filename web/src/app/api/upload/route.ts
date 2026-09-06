@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth";
 import {
   captureJson,
-  DEVICE_HEADER,
+  deviceIdFromRequest,
   isAccessPolicy,
-  isValidDeviceId,
   normalizeTags,
   storeCapture,
   UploadError,
@@ -36,8 +35,9 @@ function str(form: FormData, ...names: string[]): string | null {
 }
 export async function POST(req: Request) {
   const user = await authenticateRequest(req);
-  const deviceHeader = req.headers.get(DEVICE_HEADER)?.trim();
-  const deviceId = isValidDeviceId(deviceHeader) ? deviceHeader : null;
+  // Desktop app: X-Snimok-Device header. Browser upload without an account:
+  // the device cookie set by /claim (SameSite=Lax, so no cross-site posts).
+  const deviceId = user ? null : await deviceIdFromRequest(req);
   if (!user && !deviceId) {
     return NextResponse.json(
       { error: "Unauthorized: sign in or send an X-Snimok-Device header" },

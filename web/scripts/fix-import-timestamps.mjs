@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * One-off maintenance: captures imported from Gyazo before 2026-09-06 were
- * stored with updated_at = import time, which the Recap counts as "edited".
- * Resets updated_at to created_at for those rows (only where nothing was
- * edited after the import cutoff). Safe to re-run.
+ * One-off maintenance: captures imported from Gyazo before the fix in
+ * storeCapture were stored with updated_at = import time, which the Recap
+ * counts as "edited". Resets updated_at to created_at for imported rows whose
+ * updated_at is older than the cutoff (default: now). Safe to re-run.
  *
  *   cd web
  *   npx vercel env pull .env.prod.local --environment=production --yes
  *   node --env-file=.env.prod.local scripts/fix-import-timestamps.mjs
  *   rm .env.prod.local
  *
- * Options: --cutoff 2026-09-06T00:00:00Z   (rows updated after this are left alone)
+ * Options: --cutoff 2026-09-07T12:00:00Z   (rows updated after this are left alone; default now)
  *          --dry-run                         (only count)
  */
 import { neon } from "@neondatabase/serverless";
@@ -21,7 +21,7 @@ const opt = (name, def) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : def;
 };
 const DRY = args.includes("--dry-run");
-const cutoff = opt("--cutoff", "2026-09-06T00:00:00Z");
+const cutoff = opt("--cutoff", new Date().toISOString());
 const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
 if (!url) {
   console.error("DATABASE_URL is not set (run with node --env-file=.env.prod.local …)");

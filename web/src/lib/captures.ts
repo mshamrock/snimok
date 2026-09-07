@@ -219,7 +219,9 @@ export async function storeCapture(opts: {
       ocrText: clip(opts.meta?.ocrText, 20000),
       accessPolicy: opts.meta?.accessPolicy ?? "anyone",
       sourceId: clip(opts.meta?.sourceId, 200),
-      ...(opts.meta?.createdAt ? { createdAt: opts.meta.createdAt } : {}),
+      // Imports keep the original capture time; "updated" then means edited
+      // after that moment, not "imported", so both stamps start equal.
+      ...(opts.meta?.createdAt ? { createdAt: opts.meta.createdAt, updatedAt: opts.meta.createdAt } : {}),
     })
     .returning())(), 15_000, "saving the record");
   return row;
@@ -324,7 +326,7 @@ export function siteOf(url: string | null | undefined): string | null {
   return m[1].toLowerCase().replace(/^www\./, "") || null;
 }
 
-function ownerWhere(owner: CaptureOwner): SQL {
+export function ownerWhere(owner: CaptureOwner): SQL {
   return "userId" in owner
     ? eq(schema.captures.userId, owner.userId)
     : and(

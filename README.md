@@ -36,7 +36,10 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    and source page; the box understands `#tag`, `app:Safari`,
    `site:github.com`, `is:gif` and `is:private`, and suggests your tags and
    apps as you type. `/tags`, `/apps` and `/sites` list every value with
-   counts and link back to the filtered timeline.
+   counts and link back to the filtered timeline. `/recap/<year>` is the yearly
+   recap: a day-by-day heatmap (every cell opens that day), images / GIFs /
+   edited / storage, most active month, weekday and hour, longest streak,
+   busiest day, top tags, apps and sites, with ‹ › to move between years.
 6. The desktop app records the frontmost app, its window title and, for
    browsers, the URL of the active tab, runs Apple Vision OCR on the image
    (Russian + English) and sends everything with the upload. ⌘⇧7 captures an

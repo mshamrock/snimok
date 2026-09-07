@@ -27,6 +27,12 @@ const PATHS: Record<string, string> = {
   "grid": "M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z",
   "grid-sm": "M4 4h3v3H4zM9.5 4h3v3h-3zM15 4h3v3h-3zM4 9.5h3v3H4zM9.5 9.5h3v3h-3zM15 9.5h3v3h-3zM4 15h3v3H4zM9.5 15h3v3h-3zM15 15h3v3h-3z",
   list: "M4 6h16M4 12h16M4 18h16",
+  // Recap
+  calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+  chart: "M4 20h16M6 16v-5M11 16V8M16 16v-3M20 16V5",
+  flame: "M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z",
+  drive: "M4 14h16v6H4zM4 14l3-9h10l3 9M8 17h.01M12 17h.01",
   chevron: "M6 9l6 6 6-6",
 };
 

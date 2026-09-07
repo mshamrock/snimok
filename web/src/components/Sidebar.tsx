@@ -19,6 +19,7 @@ export function Sidebar({ total, gifs, privateCount }: { total: number; gifs: nu
     { href: "/tags", label: "Tags", icon: "hash", active: path === "/tags" },
     { href: "/apps", label: "Apps", icon: "apps", active: path === "/apps" },
     { href: "/sites", label: "Sites", icon: "globe", active: path === "/sites" },
+    { href: "/recap", label: "Recap", icon: "calendar", active: path.startsWith("/recap") },
   ];
   const filters: Item[] = [
     { href: "/captures?type=gif", label: "GIFs", icon: "film", count: gifs, active: onCaptures && type === "gif" },

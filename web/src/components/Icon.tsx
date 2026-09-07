@@ -33,6 +33,7 @@ const PATHS: Record<string, string> = {
   chart: "M4 20h16M6 16v-5M11 16V8M16 16v-3M20 16V5",
   flame: "M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z",
   drive: "M4 14h16v6H4zM4 14l3-9h10l3 9M8 17h.01M12 17h.01",
+  star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
   chevron: "M6 9l6 6 6-6",
 };
 

@@ -84,9 +84,7 @@ export function Heatmap({
     <div className="overflow-x-auto">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        width={width}
-        height={height}
-        className="block max-w-none"
+        className="block w-full min-w-[640px]"
         role="img"
         aria-label={`Captures per day in ${year}`}
       >

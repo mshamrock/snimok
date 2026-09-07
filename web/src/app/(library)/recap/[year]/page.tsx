@@ -104,7 +104,7 @@ export default async function RecapPage({ params }: Props) {
             sub={r.longestStreak ? `${dateOf(r.longestStreak.from)} – ${dateOf(r.longestStreak.to)}` : undefined}
           />
           <Stat
-            icon="plus"
+            icon="star"
             label="Busiest day"
             value={r.busiestDay ? dateOf(r.busiestDay.day) : "—"}
             sub={r.busiestDay ? `${nf.format(r.busiestDay.n)} captures` : undefined}

@@ -117,7 +117,7 @@ Schema changes: edit `src/db/schema.ts`, then `npm run db:generate`.
 
 ```bash
 cd desktop
-SNIMOK_SERVER_URL=https://your-app.vercel.app ./build.sh
+SNIMOK_SERVER_URL=https://snimok.xyz ./build.sh   # without it: http://localhost:3000
 open build            # Snimok.app and Snimok.zip
 ```
 

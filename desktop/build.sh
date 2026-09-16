@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds Snimok.app (and Snimok.zip) into ./build.
-# Usage: SNIMOK_SERVER_URL=https://your-app.vercel.app ./build.sh
+# Usage: SNIMOK_SERVER_URL=https://snimok.xyz ./build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 

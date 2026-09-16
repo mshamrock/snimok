@@ -57,7 +57,7 @@ const TOOLS: { id: Tool; label: string; hint: string; icon: string }[] = [
   { id: "arrow", label: "Arrow", hint: "Arrow", icon: "M4 20L20 4M12 4h8v8" },
   { id: "rect", label: "Rect", hint: "Rectangle", icon: "M4 5h16v14H4z" },
   { id: "ellipse", label: "Ellipse", hint: "Ellipse", icon: "M12 4c4.4 0 8 3.6 8 8s-3.6 8-8 8-8-3.6-8-8 3.6-8 8-8z" },
-  { id: "text", label: "Text", hint: "Click to add text", icon: "M5 5h14M12 5v14" },
+  { id: "text", label: "Text", hint: "Click to add text; Enter starts a new line, ⌘↵ (Ctrl+↵) finishes, long lines wrap at the edge of the image", icon: "M5 5h14M12 5v14" },
   { id: "pixelate", label: "Blur", hint: "Pixelate a region", icon: "M4 4h5v5H4zM10 10h5v5h-5zM15 4h5v5h-5zM4 15h5v5H4zM15 15h5v5h-5z" },
   { id: "crop", label: "Crop", hint: "Drag to crop", icon: "M7 3v14h14M3 7h14v14" },
 ];
@@ -80,23 +80,77 @@ function fontFamily(): string {
 }
 const fontFor = (size: number) => `600 ${size}px ${fontFamily()}`;
 
+const LINE_HEIGHT = 1.2;
+/** Breathing room so wrapped text never touches the edge of the image. */
+const TEXT_PAD = 6;
+
 let measureCtx: CanvasRenderingContext2D | null = null;
-function measureText(text: string, size: number): { w: number; h: number } {
+/** Width of a string in canvas pixels at `size`, with a rough fallback on the server. */
+function measurer(size: number): (s: string) => number {
   if (!measureCtx && typeof document !== "undefined") {
     measureCtx = document.createElement("canvas").getContext("2d");
   }
-  const lines = text.split("\n");
-  let w = 0;
-  if (measureCtx) {
-    measureCtx.font = fontFor(size);
-    for (const line of lines) w = Math.max(w, measureCtx.measureText(line).width);
-  } else {
-    w = Math.max(...lines.map((l) => l.length)) * size * 0.6;
-  }
-  return { w: Math.max(w, size * 0.5), h: lines.length * size * 1.2 };
+  if (!measureCtx) return (s: string) => s.length * size * 0.6;
+  const ctx = measureCtx;
+  ctx.font = fontFor(size);
+  return (s: string) => ctx.measureText(s).width;
 }
 
-function bboxOf(s: Shape): Box {
+/** Room a text block starting at `x` has before the right edge of the image. */
+function wrapWidthFor(x: number, baseWidth: number, size: number): number {
+  return Math.max(size * 3, baseWidth - x - TEXT_PAD);
+}
+
+/**
+ * The lines actually drawn for a text object: line breaks the user typed are
+ * kept, and anything wider than `maxWidth` wraps at word boundaries, so text
+ * never runs past the edge of the image. A single word too long for a line is
+ * broken mid-word.
+ */
+const linesCache = new Map<string, string[]>();
+function textLines(text: string, size: number, maxWidth: number): string[] {
+  // Hit-testing and cursor updates re-measure on every pointer move, so the
+  // layout of each (text, size, width) is remembered.
+  const key = `${size}|${Math.round(maxWidth)}|${text}`;
+  const cached = linesCache.get(key);
+  if (cached) return cached;
+  const width = measurer(size);
+  const lines: string[] = [];
+  for (const paragraph of text.split("\n")) {
+    let line = "";
+    const flush = () => {
+      lines.push(line);
+      line = "";
+    };
+    for (const word of paragraph.split(" ")) {
+      let rest = word;
+      if (line && width(`${line} ${rest}`) > maxWidth) flush();
+      while (width(line ? `${line} ${rest}` : rest) > maxWidth && rest.length > 1) {
+        let cut = rest.length - 1;
+        while (cut > 1 && width(line ? `${line} ${rest.slice(0, cut)}` : rest.slice(0, cut)) > maxWidth) cut--;
+        line = line ? `${line} ${rest.slice(0, cut)}` : rest.slice(0, cut);
+        flush();
+        rest = rest.slice(cut);
+      }
+      line = line ? `${line} ${rest}` : rest;
+    }
+    flush();
+  }
+  if (linesCache.size > 500) linesCache.clear();
+  linesCache.set(key, lines);
+  return lines;
+}
+
+function textMetrics(text: string, size: number, maxWidth: number): { lines: string[]; w: number; h: number } {
+  const lines = textLines(text, size, maxWidth);
+  const width = measurer(size);
+  let w = 0;
+  for (const line of lines) w = Math.max(w, width(line));
+  return { lines, w: Math.max(w, size * 0.5), h: lines.length * size * LINE_HEIGHT };
+}
+
+/** Bounding box of a shape; text needs `baseWidth` because it wraps at the image edge. */
+function bboxOf(s: Shape, baseWidth: number): Box {
   switch (s.kind) {
     case "pen":
     case "highlight": {
@@ -120,7 +174,7 @@ function bboxOf(s: Shape): Box {
     case "crop":
       return norm(s.a, s.b);
     case "text": {
-      const m = measureText(s.text, s.size);
+      const m = textMetrics(s.text, s.size, wrapWidthFor(s.at.x, baseWidth, s.size));
       return { x: s.at.x, y: s.at.y, w: m.w, h: m.h };
     }
   }
@@ -153,7 +207,7 @@ function inBox(p: Pt, b: Box, tol: number) {
   return p.x >= b.x - tol && p.x <= b.x + b.w + tol && p.y >= b.y - tol && p.y <= b.y + b.h + tol;
 }
 
-function hitShape(s: Shape, p: Pt, tol: number): boolean {
+function hitShape(s: Shape, p: Pt, tol: number, baseWidth: number): boolean {
   switch (s.kind) {
     case "pen":
     case "highlight": {
@@ -168,12 +222,12 @@ function hitShape(s: Shape, p: Pt, tol: number): boolean {
     case "arrow":
       return distToSegment(p, s.a, s.b) <= Math.max(tol, s.width);
     default:
-      return inBox(p, bboxOf(s), tol);
+      return inBox(p, bboxOf(s, baseWidth), tol);
   }
 }
 
-function hitTest(ops: Shape[], p: Pt, tol: number): number | null {
-  for (let i = ops.length - 1; i >= 0; i--) if (hitShape(ops[i], p, tol)) return i;
+function hitTest(ops: Shape[], p: Pt, tol: number, baseWidth: number): number | null {
+  for (let i = ops.length - 1; i >= 0; i--) if (hitShape(ops[i], p, tol, baseWidth)) return i;
   return null;
 }
 
@@ -219,6 +273,12 @@ function resizeTo(orig: Shape, from: Box, to: Box): Shape {
     default:
       return { ...orig, a: { x: to.x, y: to.y }, b: { x: to.x + to.w, y: to.y + to.h } };
   }
+}
+
+/** Wrapping keeps text inside the right edge; this keeps it above the bottom one. */
+function fitTextAt(at: Pt, text: string, size: number, base: Base): Pt {
+  const { h } = textMetrics(text, size, wrapWidthFor(at.x, base.width, size));
+  return { x: at.x, y: Math.max(0, Math.min(at.y, base.height - h)) };
 }
 
 const CURSORS: Record<Handle, string> = {
@@ -331,7 +391,8 @@ function drawShape(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: 
       ctx.shadowBlur = s.size / 6;
       ctx.shadowOffsetY = 1;
       ctx.fillStyle = s.color;
-      s.text.split("\n").forEach((line, i) => ctx.fillText(line, s.at.x, s.at.y + i * s.size * 1.2));
+      const lines = textLines(s.text, s.size, wrapWidthFor(s.at.x, canvas.width, s.size));
+      lines.forEach((line, i) => ctx.fillText(line, s.at.x, s.at.y + i * s.size * LINE_HEIGHT));
       break;
     }
     case "crop": {
@@ -379,7 +440,7 @@ function accentColor(): string {
 
 function drawSelection(canvas: HTMLCanvasElement, shape: Shape, scale: number) {
   const ctx = canvas.getContext("2d")!;
-  const box = bboxOf(shape);
+  const box = bboxOf(shape, canvas.width);
   const k = 1 / Math.max(scale, 0.01);
   ctx.save();
   ctx.strokeStyle = accentColor();
@@ -428,7 +489,7 @@ export function Editor({
   const dragRef = useRef<Drag | null>(null);
   const workingRef = useRef<Shape | null>(null);
   const movedRef = useRef(false);
-  const textInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
   const textOpenedAt = useRef(0);
   const editingTextIndex = useRef<number | null>(null);
 
@@ -453,6 +514,8 @@ export function Editor({
 
   const snap = index >= 0 ? history[index] : null;
   const selShape = snap && selected !== null ? snap.ops[selected] : undefined;
+  /** Image width in canvas px — text objects wrap at that edge. */
+  const baseW = snap?.base.width ?? 0;
 
   // Load the source image.
   useEffect(() => {
@@ -608,7 +671,7 @@ export function Editor({
 
   function handleAt(shape: Shape, p: Pt): Handle | null {
     const tol = tolerance();
-    const h = handlesOf(shape, bboxOf(shape)).find((h) => Math.abs(h.x - p.x) <= tol && Math.abs(h.y - p.y) <= tol);
+    const h = handlesOf(shape, bboxOf(shape, baseW)).find((h) => Math.abs(h.x - p.x) <= tol && Math.abs(h.y - p.y) <= tol);
     return h?.id ?? null;
   }
 
@@ -629,14 +692,19 @@ export function Editor({
     setTextAt(null);
     if (editIdx !== null && snap.ops[editIdx]?.kind === "text") {
       const ops = text
-        ? snap.ops.map((o, i) => (i === editIdx && o.kind === "text" ? { ...o, text } : o))
+        ? snap.ops.map((o, i) =>
+            i === editIdx && o.kind === "text"
+              ? { ...o, text, at: fitTextAt(o.at, text, o.size, snap.base) }
+              : o,
+          )
         : snap.ops.filter((_, i) => i !== editIdx);
       replaceOps(ops);
       setSelected(text ? editIdx : null);
       return;
     }
     if (!text) return;
-    replaceOps([...snap.ops, { kind: "text", at: textAt, text, color, size: textSizeFor(width) }]);
+    const size = textSizeFor(width);
+    replaceOps([...snap.ops, { kind: "text", at: fitTextAt(textAt, text, size, snap.base), text, color, size }]);
     setSelected(snap.ops.length);
   }
 
@@ -654,12 +722,12 @@ export function Editor({
       if (shape) {
         const h = handleAt(shape, p);
         if (h) {
-          dragRef.current = { kind: "resize", index: selected, handle: h, start: p, orig: shape, origBox: bboxOf(shape) };
+          dragRef.current = { kind: "resize", index: selected, handle: h, start: p, orig: shape, origBox: bboxOf(shape, baseW) };
           movedRef.current = false;
           e.currentTarget.setPointerCapture(e.pointerId);
           return;
         }
-        if (hitShape(shape, p, tol)) {
+        if (hitShape(shape, p, tol, baseW)) {
           dragRef.current = { kind: "move", index: selected, start: p, orig: shape };
           movedRef.current = false;
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -670,7 +738,7 @@ export function Editor({
 
     // 2. Selection tool: pick the topmost object under the pointer.
     if (tool === "select") {
-      const idx = hitTest(snap.ops, p, tol);
+      const idx = hitTest(snap.ops, p, tol, baseW);
       setSelected(idx);
       if (idx !== null) {
         dragRef.current = { kind: "move", index: idx, start: p, orig: snap.ops[idx] };
@@ -747,9 +815,9 @@ export function Editor({
     if (selShape && tool !== "crop") {
       const h = handleAt(selShape, p);
       if (h) next = CURSORS[h];
-      else if (hitShape(selShape, p, tol)) next = "move";
+      else if (hitShape(selShape, p, tol, baseW)) next = "move";
     }
-    if (next !== "move" && tool === "select" && hitTest(snap.ops, p, tol) !== null) next = "move";
+    if (next !== "move" && tool === "select" && hitTest(snap.ops, p, tol, baseW) !== null) next = "move";
     if (next !== cursor) setCursor(next);
   }
 
@@ -806,7 +874,7 @@ export function Editor({
   function onDoubleClick(e: ReactMouseEvent<HTMLCanvasElement>) {
     if (!snap) return;
     const p = toCanvasPoint(e);
-    const idx = hitTest(snap.ops, p, tolerance());
+    const idx = hitTest(snap.ops, p, tolerance(), baseW);
     const shape = idx !== null ? snap.ops[idx] : undefined;
     if (shape?.kind === "text" && idx !== null) {
       setSelected(idx);
@@ -891,6 +959,11 @@ export function Editor({
   }
 
   const hint = useMemo(() => TOOLS.find((t) => t.id === tool)?.hint ?? "", [tool]);
+
+  // The open text box mirrors what will be drawn: same wrap width and the same
+  // line count, so what you type is what lands on the image.
+  const textWrapWidth = textAt && snap ? wrapWidthFor(textAt.x, snap.base.width, textBoxSize) : 0;
+  const textRows = textAt ? Math.max(1, textLines(textValue, textBoxSize, textWrapWidth).length) : 1;
   const activeBtn = "border-accent bg-accent/10 text-accent";
   const idleBtn = "border-transparent bg-transparent";
 
@@ -1036,28 +1109,33 @@ export function Editor({
           />
           {!snap ? <div className="p-16 text-sm text-muted">Loading image…</div> : null}
           {textAt && snap ? (
-            <input
+            <textarea
               ref={textInputRef}
               autoFocus
-              className="absolute rounded border border-accent bg-[#fffaf0]/95 px-1 text-black outline-none"
+              rows={textRows}
+              spellCheck={false}
+              className="absolute resize-none overflow-hidden rounded-sm border border-accent bg-[#fffaf0]/95 p-0 text-black outline-none"
               style={{
                 left: `${(textAt.x / snap.base.width) * 100}%`,
                 top: `${(textAt.y / snap.base.height) * 100}%`,
+                // Exactly the room left on the image, so the box wraps where the drawing will.
+                width: `${(textWrapWidth / snap.base.width) * 100}%`,
                 fontSize: `${Math.max(12, (textBoxSize * (cssWidth || snap.base.width)) / snap.base.width)}px`,
-                minWidth: "4ch",
-                // Never wider than the space left on the canvas, so the page does not scroll.
-                maxWidth: `${Math.max(10, 100 - (textAt.x / snap.base.width) * 100)}%`,
-                boxSizing: "border-box",
+                fontFamily: "inherit",
+                fontWeight: 600,
+                lineHeight: LINE_HEIGHT,
+                boxSizing: "content-box",
               }}
-              placeholder="Type, then Enter"
+              placeholder="Type…"
               value={textValue}
               onChange={(e) => setTextValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                // Enter breaks the line (the textarea's own behaviour); ⌘/Ctrl+Enter finishes.
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
                   commitText();
-                }
-                if (e.key === "Escape") {
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
                   editingTextIndex.current = null;
                   setTextAt(null);
                 }

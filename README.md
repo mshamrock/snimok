@@ -20,7 +20,9 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    `https://<host>/i/<id>`.
 3. The link is copied to the clipboard and opened in the default browser.
 4. The capture page mirrors Gyazo: Share menu (link, image URL, Markdown,
-   HTML), Edit (pen, marker, line, arrow, rectangle, ellipse, text, pixelate,
+   HTML), Edit (pen, marker, line, arrow, rectangle, ellipse, text — Enter
+   breaks the line, ⌘↵ finishes, and anything too wide wraps at the edge of the
+   image — pixelate,
    crop, resize; drawn objects stay selectable until crop/resize/save: move,
    resize with handles, delete, recolour, re-edit text by double-click; saving
    replaces the image in place so the link never changes),

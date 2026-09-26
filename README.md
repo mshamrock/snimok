@@ -44,7 +44,11 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    busiest day, top tags, apps and sites, with ‹ › to move between years.
 6. The desktop app records the frontmost app, its window title and, for
    browsers, the URL of the active tab, runs Apple Vision OCR on the image
-   (Russian + English) and sends everything with the upload. ⌘⇧7 captures an
+   (Russian + English) and sends everything with the upload. Menu → *Watermark*
+   (off by default) stamps `snimok.xyz` into the bottom-left corner of every
+   capture and GIF frame, in dark ink on light backgrounds and light ink on dark
+   ones (sampled under the stamp; OCR runs on the clean image first; captures
+   too small to carry it are left clean). ⌘⇧7 captures an
    area, ⌘⇧8 a window.
 
 Signing in is optional. Every install has a random device id; uploads without

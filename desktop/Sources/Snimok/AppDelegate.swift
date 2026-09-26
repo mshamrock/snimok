@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var accountItem: NSMenuItem!
     private var statusLine: NSMenuItem!
     private var soundItem: NSMenuItem!
+    private var watermarkItem: NSMenuItem!
     private var dockItem: NSMenuItem!
     private var gifItem: NSMenuItem!
     private var shortcutMenu: NSMenu!
@@ -57,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         add(Settings.apiToken != nil ? "Sign Out" : "Sign In…", #selector(accountAction))
         add("Shutter Sound", #selector(toggleSound), state: Settings.shutterSound ? .on : .off)
+        add("Watermark", #selector(toggleWatermark), state: Settings.watermark ? .on : .off)
         add("Show in Dock", #selector(toggleDock), state: Settings.showInDock ? .on : .off)
         add("Server URL…", #selector(changeServer))
         return menu
@@ -128,6 +130,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         soundItem.target = self
         menu.addItem(soundItem)
 
+        watermarkItem = NSMenuItem(title: "Watermark", action: #selector(toggleWatermark), keyEquivalent: "")
+        watermarkItem.toolTip = "Stamp snimok.xyz into the bottom-left corner of every capture"
+        watermarkItem.target = self
+        menu.addItem(watermarkItem)
+
         dockItem = NSMenuItem(title: "Show in Dock", action: #selector(toggleDock), keyEquivalent: "")
         dockItem.target = self
         menu.addItem(dockItem)
@@ -153,6 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         captureItem.isEnabled = !capture.isRunning && !recorder.isRecording
         gifItem.title = recorder.isRecording ? "Stop GIF Recording" : "Record GIF"
         soundItem.state = Settings.shutterSound ? .on : .off
+        watermarkItem.state = Settings.watermark ? .on : .off
         dockItem.state = Settings.showInDock ? .on : .off
         windowItem.isEnabled = !capture.isRunning
         let current = Settings.shortcutId
@@ -245,7 +253,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Recognise text on-device so the capture is searchable, then upload.
             OCR.recognize(imageAt: file) { text in
                 if let text { fields["ocr"] = text }
-                self.upload(file, token: Settings.apiToken, fields: fields)
+                // After OCR, so the stamp never ends up in the searchable text.
+                if Settings.watermark {
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        Watermark.stamp(pngAt: file)
+                        DispatchQueue.main.async { self.upload(file, token: Settings.apiToken, fields: fields) }
+                    }
+                } else {
+                    self.upload(file, token: Settings.apiToken, fields: fields)
+                }
             }
         }
     }
@@ -264,6 +280,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleSound() {
         Settings.shutterSound.toggle()
+    }
+
+    @objc private func toggleWatermark() {
+        Settings.watermark.toggle()
     }
 
     @objc private func changeServer() {

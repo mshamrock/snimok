@@ -44,6 +44,12 @@ enum Settings {
         set { defaults.set(newValue, forKey: "shutterSound") }
     }
 
+    /// Stamp "snimok.xyz" into the bottom-left corner of every capture (default off).
+    static var watermark: Bool {
+        get { defaults.object(forKey: "watermark") as? Bool ?? false }
+        set { defaults.set(newValue, forKey: "watermark") }
+    }
+
     /// Keep an icon in the Dock while running (its context menu mirrors the
     /// menu-bar menu; useful when the menu bar is full and hides our item).
     static var showInDock: Bool {

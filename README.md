@@ -27,7 +27,9 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    resize with handles, delete, recolour, re-edit text by double-click; saving
    replaces the image in place so the link never changes),
    Lock (anyone with the link / only me), Copy image, Download, Delete, ← →
-   navigation through your timeline, tags with suggestions, a description, and
+   navigation through your timeline, tags (new captures are tagged with their
+   source app automatically, e.g. `#google-chrome`; your most-used tags are
+   offered as suggestions), a description, and
    metadata: user, upload time, app, source page (title + URL) and the text
    recognised on the image.
 5. `/captures` is the library: a sidebar (Captures with the total, Tags, Apps,

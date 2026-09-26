@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth";
 import {
+  appTag,
   captureJson,
   deviceIdFromRequest,
   isAccessPolicy,
@@ -62,11 +63,15 @@ export async function POST(req: Request) {
       const policy = str(form, "access_policy");
       const createdRaw = str(form, "created_at");
       const created = createdRaw ? new Date(createdRaw) : null;
+      const app = str(form, "app");
+      const fromApp = appTag(app);
       meta = {
         title: str(form, "title"),
         description: str(form, "desc", "description"),
-        tags: normalizeTags(str(form, "tags")),
-        app: str(form, "app"),
+        // The source-app tag used to be only a suggestion on the capture page;
+        // it is applied right away so new captures arrive already tagged.
+        tags: normalizeTags([...normalizeTags(str(form, "tags")), ...(fromApp ? [fromApp] : [])]),
+        app,
         sourceTitle: str(form, "source_title", "window_title"),
         sourceUrl: str(form, "referer_url", "source_url", "url"),
         ocrText: str(form, "ocr", "ocr_text"),

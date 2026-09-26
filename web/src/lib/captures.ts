@@ -80,6 +80,12 @@ export function isAccessPolicy(v: unknown): v is AccessPolicy {
 }
 
 /** Lower-cases, strips "#", de-duplicates; accepts an array or a comma/space list. */
+/** Tag derived from the source application ("Google Chrome" → "google-chrome"), or null. */
+export function appTag(app: string | null | undefined): string | null {
+  const t = app?.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40);
+  return t || null;
+}
+
 export function normalizeTags(input: string[] | string | null | undefined): string[] {
   const raw = Array.isArray(input) ? input : (input ?? "").split(/[,\n]+/);
   const out: string[] = [];

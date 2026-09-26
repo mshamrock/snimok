@@ -6,6 +6,7 @@ import { CaptureView } from "@/components/CaptureView";
 import { Icon } from "@/components/Icon";
 import { getCurrentUser, getUserById } from "@/lib/auth";
 import {
+  appTag,
   canManage,
   canView,
   getCapture,
@@ -75,10 +76,9 @@ export default async function CapturePage({ params }: Props) {
     isOwner && owner
       ? await Promise.all([neighborIds(owner, capture), topTags(owner)])
       : [{ newer: null, older: null }, []];
-  const appTag = capture.app
-    ? capture.app.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")
-    : null;
-  const tagSuggestions = [...new Set([...(appTag ? [appTag] : []), ...suggestions])];
+  // Older captures (and imports) may still lack their app tag: keep offering it.
+  const fromApp = appTag(capture.app);
+  const tagSuggestions = [...new Set([...(fromApp ? [fromApp] : []), ...suggestions])];
 
   return (
     <>

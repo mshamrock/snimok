@@ -109,6 +109,11 @@ export async function linkDeviceCaptures(
   deviceId: string | null,
 ): Promise<number> {
   if (!deviceId) return 0;
+  // Remember the device's account for settings the app reads (watermark…).
+  await (await db())
+    .insert(schema.deviceLinks)
+    .values({ deviceId, userId })
+    .onConflictDoUpdate({ target: schema.deviceLinks.deviceId, set: { userId, linkedAt: new Date() } });
   const rows = await (await db())
     .update(schema.captures)
     .set({ userId })

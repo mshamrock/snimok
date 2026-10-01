@@ -5,6 +5,7 @@ import {
   timestamp,
   integer,
   index,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -12,10 +13,31 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   displayName: text("display_name"),
+  /** Stamp snimok.xyz into the corner of captures made by this account's apps. */
+  watermark: boolean("watermark").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * Which account a desktop install belongs to. Written whenever a signed-in
+ * browser meets the device cookie (claim, library, login), so the app can
+ * follow the account's preferences even while it uploads anonymously.
+ */
+export const deviceLinks = pgTable(
+  "device_links",
+  {
+    deviceId: text("device_id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    linkedAt: timestamp("linked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("device_links_user_idx").on(t.userId)],
+);
 
 export const sessions = pgTable(
   "sessions",

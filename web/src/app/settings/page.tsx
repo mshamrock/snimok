@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { NewTokenForm } from "@/components/NewTokenForm";
 import { ProfileForm } from "@/components/ProfileForm";
 import { GyazoImport } from "@/components/GyazoImport";
+import { WatermarkToggle } from "@/components/WatermarkToggle";
 import { requireUser } from "@/lib/auth";
 import { appUrl } from "@/lib/env";
 import { revokeToken } from "./actions";
@@ -44,12 +45,9 @@ export default async function SettingsPage() {
               </Link>
               .
             </p>
-            <p className="mt-2 text-sm text-muted">
-              <span className="text-foreground">Watermark.</span> The app can stamp{" "}
-              <code className="font-mono text-xs">snimok.xyz</code> into the bottom-left corner of every
-              capture and GIF, in dark or light ink depending on the background. It is off by default: turn it
-              on in the menu bar (or Dock) menu → “Watermark”.
-            </p>
+          </div>
+          <div className="border-t border-border pt-4">
+            <WatermarkToggle initial={user.watermark} />
           </div>
         </section>
 

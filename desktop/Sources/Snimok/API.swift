@@ -13,6 +13,12 @@ struct DeviceCode: Decodable {
     let interval: Double
 }
 
+/// Account preferences for this install (GET/PUT /api/desktop/settings).
+struct DesktopSettings: Decodable {
+    let linked: Bool
+    let watermark: Bool
+}
+
 enum PollResult {
     case pending
     case ok(token: String)
@@ -43,7 +49,42 @@ final class API {
         return URLSession(configuration: cfg)
     }()
 
+    /// Settings calls run before every upload: fail fast instead of waiting for a network.
+    private let quick: URLSession = {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 4
+        cfg.timeoutIntervalForResource = 6
+        cfg.waitsForConnectivity = false
+        return URLSession(configuration: cfg)
+    }()
+
     private var base: URL { Settings.serverURL }
+
+    /// The account's preferences, or nil when the server cannot be reached. Completes on main.
+    func fetchSettings(token: String?, completion: @escaping (DesktopSettings?) -> Void) {
+        let req = request("api/desktop/settings", method: "GET", token: token)
+        quick.dataTask(with: req) { data, res, _ in
+            let ok = (res as? HTTPURLResponse)?.statusCode == 200
+            let value = ok ? data.flatMap { try? JSONDecoder().decode(DesktopSettings.self, from: $0) } : nil
+            DispatchQueue.main.async { completion(value) }
+        }.resume()
+    }
+
+    /// Writes the watermark choice to the account. Completes on main with the new state,
+    /// `linked: false` when the install has no account, nil on network trouble.
+    func saveWatermark(_ on: Bool, token: String?, completion: @escaping (DesktopSettings?) -> Void) {
+        var req = request("api/desktop/settings", method: "PUT", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["watermark": on])
+        quick.dataTask(with: req) { data, res, _ in
+            let status = (res as? HTTPURLResponse)?.statusCode ?? 0
+            let value: DesktopSettings?
+            if status == 404 { value = DesktopSettings(linked: false, watermark: on) }
+            else if status == 200 { value = data.flatMap { try? JSONDecoder().decode(DesktopSettings.self, from: $0) } }
+            else { value = nil }
+            DispatchQueue.main.async { completion(value) }
+        }.resume()
+    }
 
     private func request(_ path: String, method: String, token: String?) -> URLRequest {
         var req = URLRequest(url: base.appendingPathComponent(path))

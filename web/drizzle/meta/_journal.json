@@ -36,6 +36,13 @@
       "when": 1788559130338,
       "tag": "0004_curved_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790862912903,
+      "tag": "0005_hesitant_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

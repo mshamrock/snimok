@@ -161,6 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         gifItem.title = recorder.isRecording ? "Stop GIF Recording" : "Record GIF"
         soundItem.state = Settings.shutterSound ? .on : .off
         watermarkItem.state = Settings.watermark ? .on : .off
+        refreshWatermark()
         dockItem.state = Settings.showInDock ? .on : .off
         windowItem.isEnabled = !capture.isRunning
         let current = Settings.shortcutId
@@ -220,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         guard !capture.isRunning else { return }
         let context = CaptureContext.current()
+        refreshWatermark() // the encoder reads Settings.watermark when recording ends
         RegionSelector.shared.pick { [weak self] result in
             guard let self, let (rect, screen) = result else { return }
             let limit: Double = 15
@@ -246,6 +248,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !capture.isRunning else { return }
         // Record what the user is looking at before the crosshair takes over.
         let context = CaptureContext.current()
+        // Ask the account about the watermark while the crosshair is up; the
+        // answer is long back by the time OCR finishes.
+        let stamp = Deferred<Bool>()
+        refreshWatermark { stamp.resolve($0) }
         capture.selectArea(mode: mode, silent: true) { [weak self] file in
             guard let self, let file else { return }
             if Settings.shutterSound { Shutter.play() }
@@ -253,16 +259,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Recognise text on-device so the capture is searchable, then upload.
             OCR.recognize(imageAt: file) { text in
                 if let text { fields["ocr"] = text }
-                // After OCR, so the stamp never ends up in the searchable text.
-                if Settings.watermark {
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        Watermark.stamp(pngAt: file)
-                        DispatchQueue.main.async { self.upload(file, token: Settings.apiToken, fields: fields) }
-                    }
-                } else {
-                    self.upload(file, token: Settings.apiToken, fields: fields)
-                }
+                stamp.get { on in self.finishCapture(file, fields: fields, watermark: on) }
             }
+        }
+    }
+
+    /// Stamps (after OCR, so the watermark never lands in the searchable text) and uploads.
+    private func finishCapture(_ file: URL, fields: [String: String], watermark: Bool) {
+        guard watermark else {
+            upload(file, token: Settings.apiToken, fields: fields)
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            Watermark.stamp(pngAt: file)
+            DispatchQueue.main.async { self.upload(file, token: Settings.apiToken, fields: fields) }
         }
     }
 
@@ -283,7 +293,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleWatermark() {
-        Settings.watermark.toggle()
+        let next = !Settings.watermark
+        Settings.watermark = next
+        watermarkItem.state = next ? .on : .off
+        // Linked installs write through to the account, so the website shows the same switch.
+        api.saveWatermark(next, token: Settings.apiToken) { [weak self] result in
+            if let result, result.linked { Settings.watermark = result.watermark }
+            self?.watermarkItem.state = Settings.watermark ? .on : .off
+        }
+    }
+
+    /// Asks the account whether to stamp captures; answers with the last known value when offline
+    /// and with the app's own toggle when this install belongs to no account. Completes on main.
+    private func refreshWatermark(_ completion: ((Bool) -> Void)? = nil) {
+        api.fetchSettings(token: Settings.apiToken) { [weak self] result in
+            if let result, result.linked { Settings.watermark = result.watermark }
+            self?.watermarkItem?.state = Settings.watermark ? .on : .off
+            completion?(Settings.watermark)
+        }
     }
 
     @objc private func changeServer() {
@@ -405,5 +432,22 @@ enum Shutter {
     static func play() {
         sound?.stop()
         sound?.play()
+    }
+}
+
+/// A value that arrives later; `get` runs now if it is already here. Main thread only.
+final class Deferred<T> {
+    private var value: T?
+    private var waiters: [(T) -> Void] = []
+
+    func resolve(_ v: T) {
+        guard value == nil else { return }
+        value = v
+        waiters.forEach { $0(v) }
+        waiters = []
+    }
+
+    func get(_ f: @escaping (T) -> Void) {
+        if let value { f(value) } else { waiters.append(f) }
     }
 }

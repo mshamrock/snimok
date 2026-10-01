@@ -45,6 +45,9 @@ enum Settings {
     }
 
     /// Stamp "snimok.xyz" into the bottom-left corner of every capture (default off).
+    /// For an install linked to an account this mirrors the account setting on
+    /// snimok.xyz (last known value, refreshed before each capture); otherwise
+    /// it is the app's own menu toggle.
     static var watermark: Bool {
         get { defaults.object(forKey: "watermark") as? Bool ?? false }
         set { defaults.set(newValue, forKey: "watermark") }

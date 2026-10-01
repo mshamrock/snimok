@@ -45,3 +45,11 @@ export async function updateProfile(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+export async function toggleWatermark(on: boolean): Promise<{ ok: boolean; watermark?: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  await (await db()).update(schema.users).set({ watermark: on }).where(eq(schema.users.id, user.id));
+  revalidatePath("/settings");
+  return { ok: true, watermark: on };
+}

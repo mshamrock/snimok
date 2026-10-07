@@ -59,11 +59,14 @@ export default async function AdminPage({
       <main className="mx-auto w-full max-w-[1440px] flex-1 space-y-6 px-4 py-6">
         <div>
           <h1 className="text-lg font-semibold">Users</h1>
-          <p className="label">Admin · visible to {user.email} only</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <Stat label="Accounts" value={nf.format(rows.length)} sub={`${nf.format(active)} with captures`} />
+          <Stat
+            label="Accounts"
+            value={nf.format(rows.length)}
+            sub={`${nf.format(active)} with captures · ${nf.format(rows.length - active)} without`}
+          />
           <Stat label="Captures" value={nf.format(totals.captures + anon.captures)} sub={`${nf.format(totals.imported)} imported from Gyazo`} />
           <Stat label="Images" value={nf.format(totals.images + anon.captures - anon.gifs)} />
           <Stat label="GIFs" value={nf.format(totals.gifs + anon.gifs)} />

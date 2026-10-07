@@ -104,7 +104,7 @@ final class GifRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
                     return
                 }
                 let url = GIFEncoder.encode(frames: frames, endTime: last ?? frames.last!.time + 0.1, maxBytes: 4_000_000,
-                                            watermark: Settings.watermark)
+                                            watermark: Settings.watermark ? CGFloat(Settings.watermarkScale) : nil)
                 DispatchQueue.main.async { self.finish(url) }
             }
         }
@@ -155,7 +155,7 @@ final class GifRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 
 enum GIFEncoder {
     /// Encodes frames with their real durations; shrinks / drops frames until the file fits.
-    static func encode(frames: [(image: CGImage, time: Double)], endTime: Double, maxBytes: Int, watermark: Bool = false) -> URL? {
+    static func encode(frames: [(image: CGImage, time: Double)], endTime: Double, maxBytes: Int, watermark: CGFloat? = nil) -> URL? {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("snimok-\(UUID().uuidString).gif")
         let attempts: [(scale: CGFloat, stride: Int)] = [(1, 1), (0.8, 1), (0.8, 2), (0.6, 2), (0.5, 3), (0.4, 4)]
         for a in attempts {
@@ -172,7 +172,7 @@ enum GIFEncoder {
     }
 
     private static func write(frames: [(image: CGImage, time: Double)], endTime: Double, to url: URL, scale: CGFloat, stride: Int,
-                              watermark: Bool) throws {
+                              watermark: CGFloat?) throws {
         let picked = Swift.stride(from: 0, to: frames.count, by: stride).map { frames[$0] }
         guard !picked.isEmpty else { throw NSError(domain: "Snimok.GIF", code: 1) }
         try? FileManager.default.removeItem(at: url)
@@ -182,15 +182,15 @@ enum GIFEncoder {
         CGImageDestinationSetProperties(dest, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
         // One ink for the whole clip, read from the first frame, so the stamp does not flicker.
         var ink: Watermark.Ink?
-        if watermark, let first = picked.first {
-            ink = Watermark.ink(for: scale < 1 ? resized(first.image, by: scale) : first.image)
+        if let watermark, let first = picked.first {
+            ink = Watermark.ink(for: scale < 1 ? resized(first.image, by: scale) : first.image, scale: watermark)
         }
         for (i, frame) in picked.enumerated() {
             let next = i + 1 < picked.count ? picked[i + 1].time : max(endTime, frame.time + 0.1)
             // GIF delays are hundredths of a second; keep every frame visible for at least 20 ms.
             let delay = min(10, max(0.02, next - frame.time))
             var image = scale < 1 ? resized(frame.image, by: scale) : frame.image
-            if let ink { image = Watermark.apply(to: image, ink: ink) }
+            if let ink, let watermark { image = Watermark.apply(to: image, ink: ink, scale: watermark) }
             let props: [CFString: Any] = [kCGImagePropertyGIFDictionary: [
                 kCGImagePropertyGIFDelayTime: delay,
                 kCGImagePropertyGIFUnclampedDelayTime: delay,

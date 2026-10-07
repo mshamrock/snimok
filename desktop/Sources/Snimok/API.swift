@@ -17,6 +17,8 @@ struct DeviceCode: Decodable {
 struct DesktopSettings: Decodable {
     let linked: Bool
     let watermark: Bool
+    /// Percent of the automatic size (25–200); older servers omit it.
+    let watermarkScale: Int?
 }
 
 enum PollResult {
@@ -79,7 +81,7 @@ final class API {
         quick.dataTask(with: req) { data, res, _ in
             let status = (res as? HTTPURLResponse)?.statusCode ?? 0
             let value: DesktopSettings?
-            if status == 404 { value = DesktopSettings(linked: false, watermark: on) }
+            if status == 404 { value = DesktopSettings(linked: false, watermark: on, watermarkScale: nil) }
             else if status == 200 { value = data.flatMap { try? JSONDecoder().decode(DesktopSettings.self, from: $0) } }
             else { value = nil }
             DispatchQueue.main.async { completion(value) }

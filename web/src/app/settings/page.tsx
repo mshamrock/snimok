@@ -47,7 +47,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div className="border-t border-border pt-4">
-            <WatermarkToggle initial={user.watermark} />
+            <WatermarkToggle initial={user.watermark} initialScale={user.watermarkScale} />
           </div>
         </section>
 

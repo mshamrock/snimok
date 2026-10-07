@@ -53,6 +53,15 @@ enum Settings {
         set { defaults.set(newValue, forKey: "watermark") }
     }
 
+    /// Watermark size as a fraction of the automatic size (account setting, 0.25–2).
+    static var watermarkScale: Double {
+        get {
+            let v = defaults.object(forKey: "watermarkScale") as? Double ?? 1
+            return min(2, max(0.25, v))
+        }
+        set { defaults.set(min(2, max(0.25, newValue)), forKey: "watermarkScale") }
+    }
+
     /// Keep an icon in the Dock while running (its context menu mirrors the
     /// menu-bar menu; useful when the menu bar is full and hides our item).
     static var showInDock: Bool {

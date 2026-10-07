@@ -45,9 +45,11 @@ enum Watermark {
         }
     }
 
-    private static func layout(width: Int, height: Int) -> Layout? {
+    /// `scale` multiplies the automatic size (account setting, 0.25–2).
+    private static func layout(width: Int, height: Int, scale: CGFloat) -> Layout? {
         // ~3.5 % of the short side: a quiet stamp, never shouting over the capture.
-        let size = min(40, max(12, CGFloat(min(width, height)) * 0.035)).rounded()
+        let auto = min(40, max(12, CGFloat(min(width, height)) * 0.035))
+        let size = max(6, (auto * min(2, max(0.25, scale))).rounded())
         let font = NSFont.monospacedSystemFont(ofSize: size, weight: .medium)
         // Without "colour from context" Core Text would draw black whatever the fill colour is.
         let fromContext = NSAttributedString.Key(kCTForegroundColorFromContextAttributeName as String)
@@ -83,14 +85,14 @@ enum Watermark {
     }
 
     /// The ink a given image would get (used to keep one colour across a GIF).
-    static func ink(for image: CGImage) -> Ink? {
-        guard let l = layout(width: image.width, height: image.height) else { return nil }
+    static func ink(for image: CGImage, scale: CGFloat = 1) -> Ink? {
+        guard let l = layout(width: image.width, height: image.height, scale: scale) else { return nil }
         return ink(for: image, in: l.rectTopLeft(imageHeight: image.height))
     }
 
     /// A copy of `image` with the stamp; `ink` fixes the colour (GIF frames), otherwise it is sampled.
-    static func apply(to image: CGImage, ink fixed: Ink? = nil) -> CGImage {
-        guard let l = layout(width: image.width, height: image.height) else { return image }
+    static func apply(to image: CGImage, ink fixed: Ink? = nil, scale: CGFloat = 1) -> CGImage {
+        guard let l = layout(width: image.width, height: image.height, scale: scale) else { return image }
         let ink = fixed ?? ink(for: image, in: l.rectTopLeft(imageHeight: image.height))
         let space = image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
         guard let ctx = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
@@ -108,10 +110,10 @@ enum Watermark {
 
     /// Stamps a PNG file in place. Leaves the file untouched and returns false on any failure.
     @discardableResult
-    static func stamp(pngAt url: URL) -> Bool {
+    static func stamp(pngAt url: URL, scale: Double = 1) -> Bool {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return false }
-        let stamped = apply(to: image)
+        let stamped = apply(to: image, scale: CGFloat(scale))
         if stamped === image { return false } // too small, nothing drawn
         let tmp = url.deletingLastPathComponent().appendingPathComponent("wm-\(UUID().uuidString).png")
         guard let dest = CGImageDestinationCreateWithURL(tmp as CFURL, UTType.png.identifier as CFString, 1, nil) else { return false }

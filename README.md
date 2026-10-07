@@ -52,7 +52,8 @@ desktop/   Swift menu-bar app for macOS 13+ (SwiftPM, no Xcode project needed)
    ink on dark ones (sampled under the stamp; OCR runs on the clean image
    first; captures too small to carry it are left clean). It is an account
    setting: Settings → Desktop app → Watermark on the website, mirrored by the
-   app's menu item (both write the same switch). The app reads it from
+   app's menu item (both write the same switch), with a Size slider (25–200 %
+   of the automatic ~3.5 % of the short side; 100 % by default). The app reads it from
    `GET /api/desktop/settings` while the crosshair is up; an install that
    belongs to no account uses its own menu toggle. Installs are tied to
    accounts in `device_links` whenever a signed-in browser meets the device. ⌘⇧7 captures an

@@ -271,7 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
-            Watermark.stamp(pngAt: file)
+            Watermark.stamp(pngAt: file, scale: Settings.watermarkScale)
             DispatchQueue.main.async { self.upload(file, token: Settings.apiToken, fields: fields) }
         }
     }
@@ -298,7 +298,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         watermarkItem.state = next ? .on : .off
         // Linked installs write through to the account, so the website shows the same switch.
         api.saveWatermark(next, token: Settings.apiToken) { [weak self] result in
-            if let result, result.linked { Settings.watermark = result.watermark }
+            if let result, result.linked {
+                Settings.watermark = result.watermark
+                if let pct = result.watermarkScale { Settings.watermarkScale = Double(pct) / 100 }
+            }
             self?.watermarkItem.state = Settings.watermark ? .on : .off
         }
     }
@@ -307,7 +310,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// and with the app's own toggle when this install belongs to no account. Completes on main.
     private func refreshWatermark(_ completion: ((Bool) -> Void)? = nil) {
         api.fetchSettings(token: Settings.apiToken) { [weak self] result in
-            if let result, result.linked { Settings.watermark = result.watermark }
+            if let result, result.linked {
+                Settings.watermark = result.watermark
+                if let pct = result.watermarkScale { Settings.watermarkScale = Double(pct) / 100 }
+            }
             self?.watermarkItem?.state = Settings.watermark ? .on : .off
             completion?(Settings.watermark)
         }

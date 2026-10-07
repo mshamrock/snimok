@@ -43,6 +43,13 @@
       "when": 1790862912903,
       "tag": "0005_hesitant_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791369413774,
+      "tag": "0006_futuristic_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

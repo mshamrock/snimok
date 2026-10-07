@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "watermark_scale" integer DEFAULT 100 NOT NULL;

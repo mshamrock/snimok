@@ -35,6 +35,20 @@ export async function accountForDesktop(req: Request): Promise<User | null> {
   return adopted.user;
 }
 
-export async function setWatermark(userId: string, on: boolean): Promise<void> {
-  await (await db()).update(schema.users).set({ watermark: on }).where(eq(schema.users.id, userId));
+export const WATERMARK_SCALE = { min: 25, max: 200, step: 5, default: 100 } as const;
+
+/** Clamps and rounds a percent to the allowed watermark sizes, or null if it is not a number. */
+export function normalizeWatermarkScale(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return null;
+  const { min, max, step } = WATERMARK_SCALE;
+  return Math.min(max, Math.max(min, Math.round(n / step) * step));
+}
+
+export async function setWatermark(
+  userId: string,
+  patch: { watermark?: boolean; watermarkScale?: number },
+): Promise<void> {
+  if (patch.watermark === undefined && patch.watermarkScale === undefined) return;
+  await (await db()).update(schema.users).set(patch).where(eq(schema.users.id, userId));
 }

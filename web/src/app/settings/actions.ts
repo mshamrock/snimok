@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import { createApiToken, getCurrentUser } from "@/lib/auth";
+import { normalizeWatermarkScale, setWatermark } from "@/lib/preferences";
 
 export type TokenState = { token?: string; error?: string } | undefined;
 
@@ -49,7 +50,17 @@ export async function updateProfile(
 export async function toggleWatermark(on: boolean): Promise<{ ok: boolean; watermark?: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in." };
-  await (await db()).update(schema.users).set({ watermark: on }).where(eq(schema.users.id, user.id));
+  await setWatermark(user.id, { watermark: on });
   revalidatePath("/settings");
   return { ok: true, watermark: on };
+}
+
+export async function saveWatermarkScale(percent: number): Promise<{ ok: boolean; watermarkScale?: number; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  const scale = normalizeWatermarkScale(percent);
+  if (scale === null) return { ok: false, error: "Invalid size." };
+  await setWatermark(user.id, { watermarkScale: scale });
+  revalidatePath("/settings");
+  return { ok: true, watermarkScale: scale };
 }

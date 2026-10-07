@@ -15,6 +15,8 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   /** Stamp snimok.xyz into the corner of captures made by this account's apps. */
   watermark: boolean("watermark").notNull().default(false),
+  /** Watermark size in percent of the automatic size (25–200). */
+  watermarkScale: integer("watermark_scale").notNull().default(100),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

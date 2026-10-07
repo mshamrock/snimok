@@ -67,6 +67,15 @@ user registers or logs in (in that browser, or via the app's device-code sign-in
 from the menu bar), all anonymous captures of the device are linked to the
 account. Accounts are email + password.
 
+## Admin
+
+`/admin` lists every account with its captures, images, GIFs, storage, last
+capture, sign-up date and linked Macs (sortable by column), plus totals and
+the captures that belong to no account yet. Access is by email:
+`ADMIN_EMAILS=a@x.com,b@y.com` in the Vercel environment. Everyone else gets a
+plain 404 (title included), and the header shows an *Admin* link only to admins.
+Locally, the `snimok-web-admin` launch entry makes the dev test account an admin.
+
 ## Analytics (Google Analytics 4)
 
 Set `NEXT_PUBLIC_GA_ID=G-…` (GA4 → Admin → Data streams → Web → Measurement

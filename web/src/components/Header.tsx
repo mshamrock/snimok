@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { deviceIdFromRequest } from "@/lib/captures";
+import { isAdmin } from "@/lib/admin";
 import { logout } from "@/app/(auth)/actions";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
@@ -52,6 +53,11 @@ export async function Header({ suggestions }: { suggestions?: string[] } = {}) {
               <Link href="/settings" className="btn border-transparent bg-transparent">
                 Settings
               </Link>
+              {isAdmin(user) ? (
+                <Link href="/admin" className="btn border-transparent bg-transparent text-accent">
+                  Admin
+                </Link>
+              ) : null}
               <form action={logout}>
                 <button className="btn border-transparent bg-transparent text-muted">
                   Sign out

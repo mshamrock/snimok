@@ -40,6 +40,20 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "snimok-web-admin",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ADMIN_EMAILS=wm-2f49cff4@example.test",
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TimezoneCookie } from "@/components/TimezoneCookie";
+import { Analytics } from "@/components/Analytics";
+import { ConsentBanner } from "@/components/ConsentBanner";
+
+/** GA4 measurement ID; set only for production, so local and preview builds send nothing. */
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID?.trim();
 
 const instrument = Instrument_Sans({
   variable: "--font-instrument",
@@ -28,6 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <TimezoneCookie />
         {children}
+        {GA_ID ? (
+          <>
+            <Analytics gaId={GA_ID} />
+            <ConsentBanner />
+          </>
+        ) : null}
       </body>
     </html>
   );

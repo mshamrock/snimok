@@ -67,6 +67,25 @@ user registers or logs in (in that browser, or via the app's device-code sign-in
 from the menu bar), all anonymous captures of the device are linked to the
 account. Accounts are email + password.
 
+## Analytics (Google Analytics 4)
+
+Set `NEXT_PUBLIC_GA_ID=G-…` (GA4 → Admin → Data streams → Web → Measurement
+ID) for the **Production** environment on Vercel and redeploy; without it no
+analytics code is loaded, so local and preview builds send nothing.
+
+- Page views are sent manually with the pathname only: no query strings
+  (searches, filters), and capture pages are reported as `/i/:id` titled
+  "Capture", so capture links and titles never reach Google. Same-site
+  referrers get the same treatment; other sites are reduced to their origin.
+- Consent Mode v2: analytics cookies are denied until the visitor clicks
+  *Allow* in the corner banner (remembered in `localStorage`); ads signals
+  and Google signals are always off.
+- In the GA property turn off Enhanced measurement → *Outbound clicks* and
+  *File downloads*: they would report image and download URLs of captures.
+
+Local check: the `snimok-web-ga` entry in `.claude/launch.json` runs the dev
+server with a fake ID; inspect `window.dataLayer`.
+
 ## Storage: Cloudflare R2 (recommended)
 
 Images live in an S3-compatible bucket. Cloudflare R2's free tier (10 GB,

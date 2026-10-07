@@ -26,6 +26,20 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "snimok-web-ga",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_GA_ID=G-TEST000000",
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

@@ -1,3 +1,5 @@
+<p><img src="web/src/app/icon.svg" width="72" height="72" alt="Snimok"></p>
+
 # Snimok
 
 A Gyazo-style screenshot service: a tiny macOS app captures a region of the
@@ -66,6 +68,17 @@ browser so it can edit those captures and see them under `/captures`. When the
 user registers or logs in (in that browser, or via the app's device-code sign-in
 from the menu bar), all anonymous captures of the device are linked to the
 account. Accounts are email + password.
+
+## Icons
+
+The mark (an amber tile with viewfinder corners and a lens) lives in
+`web/src/app/icon.svg` and `components/Logo.tsx`. Raster versions are
+generated from the same geometry by `swift scripts/make-favicons.swift`
+(run in `web/`): `src/app/favicon.ico` (16 px hand-fitted to the pixel grid,
+32, 48), `src/app/apple-icon.png` (180, full-bleed) and the manifest icons in
+`public/` (192, 512, maskable 512). Next.js emits the `<link>` tags; the
+manifest is `src/app/manifest.ts`. The Mac app's icon is drawn by
+`desktop/Resources/make-icon.swift`.
 
 ## Admin
 

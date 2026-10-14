@@ -3,7 +3,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { getCurrentUser } from "@/lib/auth";
 import { register } from "../actions";
 
-export const metadata = { title: "Sign up" };
+export const metadata = { title: "Sign up", robots: { index: false, follow: true } };
 
 export default async function RegisterPage({
   searchParams,

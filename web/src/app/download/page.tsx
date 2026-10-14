@@ -1,8 +1,16 @@
 import { Header } from "@/components/Header";
+import { JsonLd } from "@/components/JsonLd";
+import { SiteFooter } from "@/components/SiteFooter";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { organizationLd, pageMetadata, SITE_URL, softwareApplicationLd } from "@/lib/site";
 
-export const metadata = { title: "Download" };
+export const metadata = pageMetadata({
+  title: "Download Snimok for Mac",
+  description:
+    "Download Snimok, the free screenshot and GIF tool for macOS 13+ (Apple Silicon and Intel). Press ⌘⇧7, select an area, and a shareable link opens instantly.",
+  path: "/download",
+});
 
 export default function DownloadPage() {
   const zipPath = path.join(process.cwd(), "public", "Snimok.zip");
@@ -63,16 +71,39 @@ export default function DownloadPage() {
           <h2 className="text-lg font-semibold">Build from source</h2>
           <pre className="overflow-x-auto rounded-md bg-background p-3 text-xs font-mono">
 {`cd desktop
-SNIMOK_SERVER_URL=https://your-domain.vercel.app ./build.sh
+SNIMOK_SERVER_URL=https://snimok.xyz ./build.sh
 open build/`}
           </pre>
           <p className="text-sm text-muted">
             Needs Xcode command line tools. The script produces{" "}
             <code className="font-mono">build/Snimok.app</code> and{" "}
-            <code className="font-mono">build/Snimok.zip</code>.
+            <code className="font-mono">build/Snimok.zip</code>. The source is on{" "}
+            <a href="https://github.com/mshamrock/snimok" className="underline" rel="noopener">GitHub</a>.
           </p>
         </section>
       </main>
+      <SiteFooter />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            organizationLd(),
+            {
+              ...softwareApplicationLd(),
+              ...(zipInfo
+                ? { fileSize: `${Math.round(zipInfo.size / 1024)}KB`, softwareVersion: zipInfo.mtime.toISOString().slice(0, 10) }
+                : {}),
+            },
+            {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Snimok", item: `${SITE_URL}/` },
+                { "@type": "ListItem", position: 2, name: "Download for Mac", item: `${SITE_URL}/download` },
+              ],
+            },
+          ],
+        }}
+      />
     </>
   );
 }

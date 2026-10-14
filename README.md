@@ -69,6 +69,23 @@ user registers or logs in (in that browser, or via the app's device-code sign-in
 from the menu bar), all anonymous captures of the device are linked to the
 account. Accounts are email + password.
 
+## SEO
+
+- **Indexable pages:** `/`, `/download` and `/gyazo-alternative` — each with a
+  canonical URL, its own title and description, Open Graph / Twitter cards
+  (`public/og.png`, rendered by `swift scripts/make-og.swift`) and JSON-LD
+  (Organization, WebSite, SoftwareApplication, WebPage, BreadcrumbList; helpers
+  in `src/lib/site.ts`). The home page has a question-style FAQ.
+- **Not indexed:** capture pages carry `noindex, nofollow, noimageindex` (they
+  stay crawlable so the tag is seen and link previews keep working); login and
+  sign-up are `noindex, follow`; the signed-in app, APIs and `/r/` are
+  disallowed in `src/app/robots.ts`. `src/app/sitemap.ts` lists the public pages.
+- **Images host:** every build writes `robots.txt` to the R2 bucket behind
+  `img.snimok.xyz` (`scripts/ensure-img-robots.mjs`): search engines are kept
+  out, link-preview bots (Slack, Telegram, X, Facebook, Discord…) are allowed.
+- **One host:** `src/proxy.ts` 308-redirects page requests on `www.snimok.xyz`
+  and `snimok-ten.vercel.app` to `https://snimok.xyz` (API calls are left alone).
+
 ## Icons
 
 The mark (an amber tile with viewfinder corners and a lens) lives in

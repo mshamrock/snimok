@@ -2,7 +2,91 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Corners } from "@/components/Corners";
+import { JsonLd } from "@/components/JsonLd";
+import { SiteFooter } from "@/components/SiteFooter";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  organizationLd,
+  pageMetadata,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_URL,
+  softwareApplicationLd,
+} from "@/lib/site";
+
+export const metadata = pageMetadata({
+  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+  absoluteTitle: true,
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
+
+/** Questions people actually ask before switching; headings double as answers for AI search. */
+const FAQ: { q: string; a: React.ReactNode }[] = [
+  {
+    q: "What is Snimok?",
+    a: (
+      <>
+        Snimok is a screenshot tool for macOS. Press ⌘⇧7 or click the menu-bar icon, drag over part of the
+        screen, and the capture uploads in the background: its link opens in your browser and is copied to the
+        clipboard. Every capture gets a page where you can annotate, tag, describe and share it.
+      </>
+    ),
+  },
+  {
+    q: "Is Snimok free?",
+    a: <>Yes. The Mac app and the website are free, with no paid plan and no limit on how many captures you keep or browse.</>,
+  },
+  {
+    q: "Do I need an account to take screenshots?",
+    a: (
+      <>
+        No. Without an account, captures belong to your Mac and you can open and edit them from the links. Create
+        an account later and everything you captured is attached to it, so you can browse it from any browser.
+      </>
+    ),
+  },
+  {
+    q: "Can Snimok record GIFs?",
+    a: (
+      <>
+        Yes. Press ⌘⇧8, select an area and record up to 15 seconds; a small panel lets you stop or cancel. The
+        GIF uploads like a screenshot and gets its own link. ⌘⇧9 captures a single window.
+      </>
+    ),
+  },
+  {
+    q: "How do I find an old screenshot?",
+    a: (
+      <>
+        Search for any word that appears on the image: the Mac app recognises text on-device with Apple Vision
+        (English and Russian). Search also covers titles, descriptions, tags, the app you captured from and the web
+        page title or address. Filters like <code className="font-mono text-[13px]">#tag</code>,{" "}
+        <code className="font-mono text-[13px]">app:Safari</code> or{" "}
+        <code className="font-mono text-[13px]">site:github.com</code> narrow it down.
+      </>
+    ),
+  },
+  {
+    q: "Who can see my screenshots?",
+    a: (
+      <>
+        Only people you send the link to. Links are random and unguessable, capture pages are hidden from search
+        engines, and a capture set to “Only me” opens for nobody but you.
+      </>
+    ),
+  },
+  {
+    q: "Can I move my screenshots from Gyazo?",
+    a: (
+      <>
+        Yes. Settings → Import from Gyazo copies your whole Gyazo library with the original dates, apps, page titles
+        and recognised text. See <Link href="/gyazo-alternative" className="underline">Snimok as a Gyazo alternative</Link>.
+      </>
+    ),
+  },
+];
 
 const STEPS = [
   {
@@ -30,13 +114,13 @@ export default async function Home() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-20 pt-14">
         <section className="grid items-center gap-12 md:grid-cols-[1.1fr_1fr]">
           <div className="space-y-6">
-            <p className="label">macOS 13+ · ⌘⇧7 area · ⌘⇧8 window</p>
+            <p className="label">Free for macOS 13+ · ⌘⇧7 area · ⌘⇧8 GIF · ⌘⇧9 window</p>
             <h1 className="text-[44px] font-semibold leading-[1.05] tracking-tight text-balance sm:text-[56px]">
-              Screenshot.<br />Link.<br />Done.
+              Screenshot.<br /> Link.<br /> Done.
             </h1>
             <p className="max-w-md text-lg text-muted">
-              Drag over any part of your screen; a link to the image opens instantly. Edit it, tag it,
-              and find it later by the text on it.
+              Snimok is a free screenshot tool for Mac. Drag over any part of your screen, or record a GIF, and a
+              link to the image opens instantly. Edit it, tag it, and find it later by the text on it.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/download" className="btn btn-primary px-5 py-2.5 text-base">
@@ -96,7 +180,39 @@ export default async function Home() {
             </div>
           ))}
         </section>
+
+        <section aria-labelledby="faq" className="mt-24 border-t border-border pt-10">
+          <h2 id="faq" className="label mb-6 flex items-center gap-3">
+            <span className="inline-block h-2 w-2 bg-accent" />
+            Questions
+          </h2>
+          <div className="grid gap-x-12 gap-y-8 md:grid-cols-2">
+            {FAQ.map((f) => (
+              <div key={f.q} className="space-y-2">
+                <h3 className="font-semibold">{f.q}</h3>
+                <p className="text-sm leading-relaxed text-muted">{f.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
+      <SiteFooter />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            organizationLd(),
+            {
+              "@type": "WebSite",
+              "@id": `${SITE_URL}/#website`,
+              name: SITE_NAME,
+              url: `${SITE_URL}/`,
+              publisher: { "@id": `${SITE_URL}/#org` },
+            },
+            softwareApplicationLd(),
+          ],
+        }}
+      />
     </>
   );
 }

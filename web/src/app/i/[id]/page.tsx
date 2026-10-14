@@ -25,10 +25,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const c = await getCapture(id);
   if (!c) return { title: "Not found" };
-  if (c.accessPolicy === "only_me") return { title: "Private capture", robots: { index: false } };
+  // Captures are shared by link; their titles, window names and OCR text are
+  // personal, so they are never indexed (link previews still work).
+  const noindex = { index: false, follow: false, googleBot: { index: false, follow: false, noimageindex: true } };
+  if (c.accessPolicy === "only_me") return { title: "Private capture", robots: noindex };
   const title = c.title ?? `Screenshot ${c.createdAt.toISOString().slice(0, 10)}`;
   return {
     title,
+    robots: noindex,
     description: c.description ?? undefined,
     openGraph: {
       title,
